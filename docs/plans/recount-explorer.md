@@ -6,7 +6,9 @@ samples from SRA, GTEx, and TCGA) and visualize any study without writing code.
 Pick a study, and the app pulls it through the recount3 API and gives you
 metadata, QC, gene-level expression, and PCA views.
 
-**Status:** scaffold implemented, ready for iteration.
+**Status:** implemented through phase 2: scaffold, async study loading
+(ExtendedTask + mirai), and exports (data downloads, plot PDFs, reproducible
+script).
 
 ## Who uses it, and why
 
@@ -61,6 +63,10 @@ flowchart LR
   split by any categorical metadata column.
 - **PCA**: PC1 vs PC2 on the top N variable genes, colored by metadata, with a
   variance-explained scree bar.
+- **Export**: RSE (.rds), log2 CPM matrix (.csv.gz), full flattened sample
+  metadata (.csv), exact on-screen plots as PDF, and a standalone reproduction
+  script (recount3 + ggplot2 only) with citation and provenance in its header,
+  previewed live in the tab.
 
 ## Architecture
 
@@ -87,6 +93,13 @@ The `study` reactive returned by the browser module is the single data
 contract between modules: `list(project, organism, source, rse, log_expr)`,
 `NULL` until a study is loaded.
 
+Study loading (download plus log2 CPM) runs off the main process on mirai
+daemons via `ExtendedTask`, so one user's slow download never freezes the app
+for anyone. The gene and PCA modules return their current settings as
+reactives; the export module feeds those into the reproduction-script builder,
+and the shared plot builders in `logic_plots.R` guarantee the downloaded PDFs
+match the on-screen plots exactly.
+
 ## Future work
 
 - Large studies (GTEx, TCGA) are slow to load and memory-heavy: add a sample
@@ -94,5 +107,5 @@ contract between modules: `list(project, organism, source, rse, log_expr)`,
 - Differential expression between two metadata groups (reuse the gallery's
   group-comparison component).
 - Heatmap of top variable genes (reuse the gallery's heatmap component).
-- Download buttons: filtered metadata, expression matrix subset, plots.
+- renv lockfile, logic-layer tests (testthat on a fixture RSE), CI.
 - Deploy target and `_brand.yml` to match the showcase branding.

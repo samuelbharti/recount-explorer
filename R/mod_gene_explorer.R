@@ -1,5 +1,7 @@
 # Gene explorer module: server-side gene search, expression split by any
-# categorical metadata column, boxplot or violin.
+# categorical metadata column, boxplot or violin, PDF download of the exact
+# on-screen plot. The server returns a reactive of the current settings
+# (gene, gene_label, group_by, geom) for the reproducible-script export.
 
 gene_explorer_ui <- function(id) {
   ns <- NS(id)
@@ -17,7 +19,8 @@ gene_explorer_ui <- function(id) {
         ns("geom"), "Plot type",
         choices = c("Boxplot" = "box", "Violin" = "violin"),
         inline = TRUE
-      )
+      ),
+      downloadButton(ns("download_pdf"), "Download plot (PDF)")
     ),
     mainPanel(
       width = 9,
@@ -42,26 +45,44 @@ gene_explorer_server <- function(id, study) {
       )
     })
 
+    gene_label <- reactive({
+      req(study(), input$gene)
+      names(which(gene_choices(study()$rse) == input$gene))[1]
+    })
+
+    current_plot <- reactive({
+      req(study(), input$gene)
+      df <- gene_expression_df(study(), input$gene, input$group_by)
+      plot_gene_expression(
+        df,
+        geom = input$geom,
+        gene_label = gene_label(),
+        group_label = if (nzchar(input$group_by)) input$group_by else NULL
+      )
+    })
+
     output$plot <- renderPlot({
       validate(need(study(), "Load a study from the Browse studies tab first."))
-      req(input$gene)
-      df <- gene_expression_df(study(), input$gene, input$group_by)
-      gg <- ggplot(df, aes(x = group, y = expression, fill = group))
-      gg <- if (identical(input$geom, "violin")) {
-        gg + geom_violin(alpha = 0.7)
-      } else {
-        gg + geom_boxplot(alpha = 0.7, outlier.shape = NA)
+      validate(need(input$gene, "Search for a gene in the sidebar."))
+      current_plot()
+    })
+
+    output$download_pdf <- downloadHandler(
+      filename = function() {
+        paste0(req(study())$project, "_", req(input$gene), ".pdf")
+      },
+      content = function(file) {
+        ggsave(file, plot = current_plot(), width = 9, height = 6)
       }
-      gg +
-        geom_jitter(width = 0.15, alpha = 0.4, size = 1.5) +
-        labs(
-          x = if (nzchar(input$group_by)) input$group_by else NULL,
-          y = "log2 CPM",
-          title = names(which(gene_choices(study()$rse) == input$gene))[1]
-        ) +
-        guides(fill = "none") +
-        theme_minimal(base_size = 14) +
-        theme(axis.text.x = element_text(angle = 30, hjust = 1))
+    )
+
+    reactive({
+      list(
+        gene = input$gene %||% "",
+        gene_label = if (isTruthy(input$gene)) gene_label() else "",
+        group_by = input$group_by %||% "",
+        geom = input$geom %||% "box"
+      )
     })
   })
 }

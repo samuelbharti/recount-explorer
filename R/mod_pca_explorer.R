@@ -1,5 +1,7 @@
 # PCA explorer module: sample-level PCA on the top variable genes, colored by
-# a metadata column, with a variance-explained scree bar.
+# a metadata column, variance-explained scree bar, PDF download of the exact
+# on-screen scatter. The server returns a reactive of the current settings
+# (n_genes, color_by) for the reproducible-script export.
 
 pca_explorer_ui <- function(id) {
   ns <- NS(id)
@@ -11,7 +13,8 @@ pca_explorer_ui <- function(id) {
         ns("n_genes"), "Top variable genes",
         min = 100, max = 2000, value = 500, step = 100
       ),
-      selectInput(ns("color_by"), "Color by", choices = c("None" = ""))
+      selectInput(ns("color_by"), "Color by", choices = c("None" = "")),
+      downloadButton(ns("download_pdf"), "Download plot (PDF)")
     ),
     mainPanel(
       width = 9,
@@ -47,41 +50,44 @@ pca_explorer_server <- function(id, study) {
       })
     })
 
-    output$scatter <- renderPlot({
-      validate(need(study(), "Load a study from the Browse studies tab first."))
+    current_scatter <- reactive({
       p <- pca()
       df <- p$scores
       cd <- as.data.frame(SummarizedExperiment::colData(study()$rse))
+      color_label <- NULL
       if (nzchar(input$color_by) && input$color_by %in% names(cd)) {
         df$color <- as.character(cd[[input$color_by]])
+        color_label <- input$color_by
       } else {
         df$color <- "sample"
       }
-      pct <- function(i) sprintf("PC%d (%.1f%%)", i, 100 * p$var_explained[i])
-      gg <- ggplot(df, aes(x = PC1, y = PC2, color = color)) +
-        geom_point(alpha = 0.7, size = 2.5) +
-        labs(
-          x = pct(1), y = pct(2),
-          color = if (nzchar(input$color_by)) input$color_by else NULL
-        ) +
-        theme_minimal(base_size = 14)
-      if (!nzchar(input$color_by)) {
-        gg <- gg + guides(color = "none")
-      }
-      gg
+      plot_pca_scatter(df, p$var_explained, color_label)
+    })
+
+    output$scatter <- renderPlot({
+      validate(need(study(), "Load a study from the Browse studies tab first."))
+      current_scatter()
     })
 
     output$scree <- renderPlot({
       validate(need(study(), "Load a study from the Browse studies tab first."))
-      p <- pca()
-      df <- data.frame(
-        pc = factor(seq_along(p$var_explained)),
-        var = 100 * p$var_explained
+      plot_pca_scree(pca()$var_explained)
+    })
+
+    output$download_pdf <- downloadHandler(
+      filename = function() {
+        paste0(req(study())$project, "_pca.pdf")
+      },
+      content = function(file) {
+        ggsave(file, plot = current_scatter(), width = 8, height = 6)
+      }
+    )
+
+    reactive({
+      list(
+        n_genes = input$n_genes %||% 500,
+        color_by = input$color_by %||% ""
       )
-      ggplot(df, aes(x = pc, y = var)) +
-        geom_col() +
-        labs(x = "PC", y = "% variance") +
-        theme_minimal(base_size = 14)
     })
   })
 }

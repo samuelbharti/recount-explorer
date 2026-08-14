@@ -1,4 +1,6 @@
 # Study browser module: filter the recount3 catalog and load one study.
+# Loading runs off the main R process (ExtendedTask + mirai daemon), so the UI
+# stays responsive for this and every other session while a study downloads.
 # The server returns the app-wide `study` reactive:
 # list(project, organism, source, rse, log_expr), NULL until a study is loaded.
 
@@ -21,8 +23,8 @@ study_browser_ui <- function(id) {
       numericInput(ns("max_n"), "Max samples", value = 500, min = 1, step = 1),
       actionButton(ns("load"), "Load selected study", class = "btn-primary"),
       helpText(
-        "Large studies (GTEx, TCGA) take a while to download",
-        "and need a lot of memory."
+        "Loading runs in the background: keep browsing while it downloads.",
+        "Large studies (GTEx, TCGA) take a while and need a lot of memory."
       )
     ),
     mainPanel(
@@ -73,38 +75,85 @@ study_browser_server <- function(id) {
     })
 
     study <- reactiveVal(NULL)
+    pending <- reactiveVal(NULL)
+
+    # Download and log2 CPM both happen on the daemon: mirai evaluates in a
+    # clean process, so the two logic functions are passed in explicitly and
+    # already namespace-qualify their recount3/SummarizedExperiment calls.
+    load_task <- ExtendedTask$new(function(proj_info) {
+      mirai::mirai(
+        {
+          rse <- load_study(proj_info)
+          list(rse = rse, log_expr = log_cpm(rse))
+        },
+        .args = list(
+          proj_info = proj_info,
+          load_study = load_study,
+          log_cpm = log_cpm
+        )
+      )
+    })
 
     observeEvent(input$load, {
+      if (identical(load_task$status(), "running")) {
+        showNotification(
+          paste("Still loading", pending()$project, ", one study at a time."),
+          type = "warning"
+        )
+        return()
+      }
       sel <- input$catalog_rows_selected
       if (!length(sel)) {
         showNotification("Select a study in the table first.", type = "warning")
         return()
       }
       info <- filtered()[sel, , drop = FALSE]
-      result <- withProgress(
-        message = paste("Loading", info$project),
-        detail = "Downloading counts and metadata from recount3...",
-        value = NULL,
-        tryCatch(load_study(info), error = function(e) e)
+      pending(info)
+      load_task$invoke(info)
+      updateActionButton(session, "load", label = "Loading...")
+      showNotification(
+        paste(
+          "Loading", info$project, "in the background.",
+          "The app stays responsive; you will be notified when it is ready."
+        ),
+        type = "message"
       )
-      if (inherits(result, "error")) {
+    })
+
+    observeEvent(load_task$status(), {
+      status <- load_task$status()
+      if (!status %in% c("success", "error")) {
+        return()
+      }
+      updateActionButton(session, "load", label = "Load selected study")
+      info <- pending()
+      pending(NULL)
+      if (status == "error") {
+        msg <- tryCatch(
+          {
+            load_task$result()
+            "unknown error"
+          },
+          error = function(e) conditionMessage(e)
+        )
         showNotification(
-          paste("Failed to load", info$project, ":", conditionMessage(result)),
+          paste("Failed to load", info$project, ":", msg),
           type = "error",
           duration = 10
         )
         return()
       }
+      res <- load_task$result()
       study(list(
         project = info$project,
         organism = info$organism,
         source = info$file_source,
-        rse = result,
-        log_expr = log_cpm(result)
+        rse = res$rse,
+        log_expr = res$log_expr
       ))
       showNotification(
         paste(
-          info$project, "loaded:", ncol(result), "samples.",
+          info$project, "loaded:", ncol(res$rse), "samples.",
           "See the Study overview tab."
         ),
         type = "message"

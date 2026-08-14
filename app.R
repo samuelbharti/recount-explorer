@@ -15,6 +15,12 @@ for (f in list.files("R", pattern = "[.][Rr]$", full.names = TRUE)) {
   source(f)
 }
 
+# Study loading runs on mirai daemons via ExtendedTask, so a slow download
+# never blocks this process. Two daemons: two studies can load concurrently
+# across sessions; further requests queue.
+mirai::daemons(2)
+onStop(function() mirai::daemons(0))
+
 ui <- navbarPage(
   title = "Recount Explorer",
   header = tags$head(
@@ -23,7 +29,8 @@ ui <- navbarPage(
   tabPanel("Browse studies", study_browser_ui("browser")),
   tabPanel("Study overview", study_overview_ui("overview")),
   tabPanel("Gene explorer", gene_explorer_ui("gene")),
-  tabPanel("PCA", pca_explorer_ui("pca"))
+  tabPanel("PCA", pca_explorer_ui("pca")),
+  tabPanel("Export", export_ui("export"))
 )
 
 server <- function(input, output, session) {
@@ -40,8 +47,9 @@ server <- function(input, output, session) {
 
   study <- study_browser_server("browser")
   study_overview_server("overview", study)
-  gene_explorer_server("gene", study)
-  pca_explorer_server("pca", study)
+  gene_state <- gene_explorer_server("gene", study)
+  pca_state <- pca_explorer_server("pca", study)
+  export_server("export", study, gene_state, pca_state)
 }
 
 shinyApp(ui, server)

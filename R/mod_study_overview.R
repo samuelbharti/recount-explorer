@@ -55,13 +55,7 @@ study_overview_server <- function(id, study) {
 
     output$qc <- renderPlot({
       validate(need(study(), "Load a study from the Browse studies tab first."))
-      qc <- sample_qc(study()$rse)
-      ggplot(qc, aes(x = library_size, y = detected_genes)) +
-        geom_point(alpha = 0.6, size = 2) +
-        scale_x_log10(labels = scales::label_comma()) +
-        scale_y_continuous(labels = scales::label_comma()) +
-        labs(x = "Library size (log scale)", y = "Detected genes") +
-        theme_minimal(base_size = 14)
+      plot_qc(sample_qc(study()$rse))
     })
   })
 }
