@@ -13,7 +13,7 @@ import StudyOverview from "@/views/StudyOverview";
 import GeneExplorer from "@/views/GeneExplorer";
 import PcaExplorer from "@/views/PcaExplorer";
 import ExportView from "@/views/ExportView";
-import type { StudyState } from "@/types";
+import type { CatalogStatus, StudyState } from "@/types";
 
 const VIEWS = [
   { id: "browse", label: "Browse", element: StudyBrowser, needsStudy: false },
@@ -26,7 +26,7 @@ const VIEWS = [
 export default function App() {
   const ready = useShinyInitialized();
   const busy = useShinyBusy();
-  const summary = useShinyOutputValue<string>("catalog_summary");
+  const status = useShinyOutputValue<CatalogStatus>("catalog_status");
   const state = useShinyOutputValue<StudyState>("study_state");
   const [view, setView] = React.useState("browse");
 
@@ -45,7 +45,9 @@ export default function App() {
               Recount Explorer
             </h1>
             <p className="text-xs text-[var(--color-ink-muted)]">
-              {ready ? (summary ?? "Reading the catalog…") : "Connecting…"}
+              {!ready
+                ? "Connecting to the server…"
+                : (status?.message ?? "Reading the study catalog…")}
             </p>
           </div>
 

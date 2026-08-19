@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, Input, Label, Select } from "@/components/ui/field";
 import { cn, formatCount } from "@/lib/utils";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import type {
   CatalogFacets,
   CatalogPage,
+  CatalogStatus,
   LoadStatus,
   StudyDetails,
 } from "@/types";
@@ -30,6 +32,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export default function StudyBrowser() {
+  const status = useShinyOutputValue<CatalogStatus>("catalog_status");
   const facets = useShinyOutputValue<CatalogFacets>("catalog_facets");
   const page = useShinyOutputValue<CatalogPage>("catalog_page");
   const details = useShinyOutputValue<StudyDetails>("study_details");
@@ -200,10 +203,13 @@ export default function StudyBrowser() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-muted)]" />
               <Input
                 className="pl-9"
+                disabled={!facets}
                 placeholder={
                   facets
                     ? `Search ${formatCount(facets.total)} studies by accession, title or abstract`
-                    : "Loading catalog…"
+                    : status?.state === "missing"
+                      ? "No catalog snapshot"
+                      : "Reading the study catalog…"
                 }
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
@@ -214,7 +220,7 @@ export default function StudyBrowser() {
                 ? page.matched === page.total
                   ? `Showing all ${formatCount(page.total)} studies.`
                   : `${formatCount(page.matched)} of ${formatCount(page.total)} studies match.`
-                : "…"}
+                : (status?.message ?? "Connecting to the server…")}
             </p>
           </CardContent>
         </Card>
@@ -274,12 +280,15 @@ export default function StudyBrowser() {
                       colSpan={headers.length}
                       className="px-3 py-10 text-center text-[var(--color-ink-muted)]"
                     >
-                      No study matches that search.
+                      {status?.state === "missing"
+                        ? status.message
+                        : "No study matches that search."}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+            {!page && status?.state !== "missing" && <TableSkeleton />}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] px-3 py-2 text-xs">

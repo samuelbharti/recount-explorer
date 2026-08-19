@@ -86,3 +86,30 @@ test_that("recount3_available reports on the installed namespace", {
   expect_type(recount3_available(), "logical")
   expect_length(recount3_available(), 1L)
 })
+
+test_that("recount3_installed answers without loading recount3", {
+  # This is the whole point of the function. requireNamespace() answers the
+  # same question but loads the package to do it, which costs 5.3 seconds and
+  # 98 namespaces on a process that only wants to read a local catalog file.
+  expect_type(recount3_installed(), "logical")
+  expect_length(recount3_installed(), 1L)
+
+  # Run it in a clean process so an already-loaded recount3 cannot hide a
+  # regression. testthat runs with the working directory set to tests/testthat,
+  # so the paths handed to the subprocess have to be absolute.
+  root <- normalizePath(testthat::test_path("..", ".."), winslash = "/")
+  script <- c(
+    sprintf("source('%s/R/logic_recount.R')", root),
+    "invisible(recount3_installed())",
+    "cat('recount3' %in% loadedNamespaces())"
+  )
+  f <- withr::local_tempfile(fileext = ".R")
+  writeLines(script, f)
+  out <- suppressWarnings(system2(
+    file.path(R.home("bin"), "Rscript"),
+    c("--vanilla", shQuote(f)),
+    stdout = TRUE,
+    stderr = TRUE
+  ))
+  expect_equal(tail(out, 1), "FALSE")
+})
