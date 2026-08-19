@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/samuelbharti/recount-explorer/discussions
+    about: Ask a question or discuss an idea before you open an issue.
+  - name: recount3 data questions
+    url: https://support.bioconductor.org/
+    about: Ask about the recount3 data itself on the Bioconductor support
+      site. This tracker covers the app only.

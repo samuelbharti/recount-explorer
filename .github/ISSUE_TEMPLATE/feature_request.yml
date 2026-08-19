@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest a new capability for the app
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: Describe the problem, not the solution. What do you want to
+        learn from the data?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: Optional. If you have a design in mind, describe it.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Study catalog and search
+        - Study overview and QC
+        - Gene expression
+        - PCA and dimensionality reduction
+        - Export and reproducibility
+        - Performance
+        - Something else
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this
+          required: true
