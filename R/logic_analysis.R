@@ -36,7 +36,9 @@ sample_qc <- function(rse) {
 # the sample metadata (or a single "all samples" group when none is chosen).
 gene_expression_df <- function(study, gene_id, group_by = NULL) {
   cd <- as.data.frame(SummarizedExperiment::colData(study$rse))
-  group <- if (!is.null(group_by) && nzchar(group_by) && group_by %in% names(cd)) {
+  group <- if (
+    !is.null(group_by) && nzchar(group_by) && group_by %in% names(cd)
+  ) {
     as.character(cd[[group_by]])
   } else {
     rep("all samples", ncol(study$rse))

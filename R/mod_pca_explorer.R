@@ -10,8 +10,12 @@ pca_explorer_ui <- function(id) {
       width = 3,
       h4("PCA settings"),
       sliderInput(
-        ns("n_genes"), "Top variable genes",
-        min = 100, max = 2000, value = 500, step = 100
+        ns("n_genes"),
+        "Top variable genes",
+        min = 100,
+        max = 2000,
+        value = 500,
+        step = 100
       ),
       selectInput(ns("color_by"), "Color by", choices = c("None" = "")),
       downloadButton(ns("download_pdf"), "Download plot (PDF)")
@@ -38,7 +42,8 @@ pca_explorer_server <- function(id, study) {
   moduleServer(id, function(input, output, session) {
     observeEvent(study(), {
       updateSelectInput(
-        session, "color_by",
+        session,
+        "color_by",
         choices = c("None" = "", metadata_group_choices(study()$rse))
       )
     })

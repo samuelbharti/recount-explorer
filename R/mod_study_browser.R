@@ -11,11 +11,13 @@ study_browser_ui <- function(id) {
       width = 3,
       h4("Filter catalog"),
       selectInput(
-        ns("organism"), "Organism",
+        ns("organism"),
+        "Organism",
         choices = c("Human" = "human", "Mouse" = "mouse")
       ),
       checkboxGroupInput(
-        ns("source"), "Data source",
+        ns("source"),
+        "Data source",
         choices = c("SRA" = "sra", "GTEx" = "gtex", "TCGA" = "tcga"),
         selected = "sra"
       ),
@@ -113,7 +115,9 @@ study_browser_server <- function(id) {
       updateActionButton(session, "load", label = "Loading...")
       showNotification(
         paste(
-          "Loading", info$project, "in the background.",
+          "Loading",
+          info$project,
+          "in the background.",
           "The app stays responsive; you will be notified when it is ready."
         ),
         type = "message"
@@ -153,7 +157,10 @@ study_browser_server <- function(id) {
       ))
       showNotification(
         paste(
-          info$project, "loaded:", ncol(res$rse), "samples.",
+          info$project,
+          "loaded:",
+          ncol(res$rse),
+          "samples.",
           "See the Study overview tab."
         ),
         type = "message"

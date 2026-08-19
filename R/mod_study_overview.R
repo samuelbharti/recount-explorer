@@ -37,7 +37,10 @@ study_overview_ui <- function(id) {
 study_overview_server <- function(id, study) {
   moduleServer(id, function(input, output, session) {
     output$project <- renderText(req(study())$project)
-    output$n_samples <- renderText(format(ncol(req(study())$rse), big.mark = ","))
+    output$n_samples <- renderText(format(
+      ncol(req(study())$rse),
+      big.mark = ","
+    ))
     output$n_genes <- renderText(format(nrow(req(study())$rse), big.mark = ","))
     output$source <- renderText({
       s <- req(study())
