@@ -46,9 +46,6 @@ sources: sra, gtex, tcga, ANSWER_ALS, ega, LIBD, and TARGET_ALS. There are
 
 ## The catalog snapshot
 
-**Status: the snapshot is built and committed. The browser module does not
-read it yet, so the app still fetches the catalog live.**
-
 `available_projects()` returns accessions and sample counts. It returns no
 study title and no abstract. A catalog without titles is a list of accession
 numbers that you cannot search.
@@ -90,9 +87,30 @@ minutes. Nothing that slow belongs behind a button. The refresh reads the
 accession list again. It requests titles only for studies that it never saw
 before.
 
-The refresh writes the new snapshot to `tools::R_user_dir()`. It does not write
-into the bundle. A deployed app must never write into its own installation
-directory.
+The refresh is not built yet. It will write the new snapshot to
+`tools::R_user_dir()` rather than into the bundle. A deployed app must never
+write into its own installation directory.
+
+### Why the table binds the whole catalog
+
+The browser hands the entire catalog to `DT::datatable()` and lets DataTables
+do the filtering. That looks wasteful and is not.
+
+`input$catalog_rows_selected` is an index into the frame given to
+`datatable()`, before sorting and before search. So the index survives any
+amount of sorting and filtering, as long as that frame does not change. The
+earlier code rebuilt a filtered frame on every control change. That let the
+selection input lag one flush behind the data and point at the wrong study.
+
+The abstract column stays in the data and is hidden through `columnDefs`.
+DataTables treats visible and searchable as independent, so a search still
+matches abstract text. Removing the column instead breaks the table outright.
+The server-side filter compares the client column count against `ncol(data)`
+and returns nothing when the two disagree.
+
+`organism` and `file_source` are rendered as factors so DataTables draws a
+select box rather than a text box. They are stored as character, because
+`create_rse()` rejects a factor, and selection resolves against storage.
 
 ## Flow
 
@@ -111,9 +129,10 @@ flowchart LR
 
 ## Views
 
-- **Browse studies**: The catalog. You can filter by organism, data source, and
-  sample count. Search across titles and abstracts arrives with the catalog
-  snapshot.
+- **Browse studies**: The whole catalog, from the snapshot, with no network
+  call. One search box covers the accession, the title, and the abstract text.
+  Each column has its own filter. When you select a row, the app shows the
+  abstract and links out to the source archive.
 - **Study overview**: The headline numbers, a table of the sample metadata, and
   a quality plot of library size against detected genes.
 - **Gene explorer**: Server-side gene search. The app draws a boxplot or a
