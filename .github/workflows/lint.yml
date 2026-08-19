@@ -28,8 +28,6 @@ jobs:
   lint:
     name: lintr
     runs-on: ubuntu-latest
-    env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,13 +35,12 @@ jobs:
         with:
           use-public-rspm: true
 
-      # lintr only, deliberately not the app's Bioconductor dependencies: a
-      # static lint does not need recount3 installed, and skipping it keeps
-      # this job at a couple of minutes instead of twenty.
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::lintr
-          dependencies: '"none"'
+      # Install lintr on its own rather than through setup-r-dependencies. A
+      # static lint does not need recount3, and skipping the Bioconductor
+      # install keeps this job at about two minutes.
+      - name: Install lintr
+        run: install.packages("lintr")
+        shell: Rscript {0}
 
       - name: Lint
         run: lintr::lint_dir(".")
