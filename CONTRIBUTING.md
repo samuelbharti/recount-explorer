@@ -78,6 +78,22 @@ The app keeps the computation apart from the interface. Keep it that way:
 If you write `req()` or read `input$` inside a `logic_` file, move that code to
 a module. If you write computation inside a module, move it to a `logic_` file.
 
+## The catalog snapshot
+
+`data/recount3_catalog.rds` holds every recount3 study with its title and its
+abstract. A script generates this file. Never edit it by hand.
+
+```sh
+Rscript data-raw/build_catalog.R
+```
+
+With a study explorer export in `data-raw/` the rebuild takes about two
+minutes. Without one it makes about 19,000 requests and takes 20 to 40
+minutes. The script can resume, so an interrupted run continues from that
+point. [data/README.md](data/README.md) explains the schema and the flags.
+
+Most of the time you do not need a rebuild at all.
+
 ## Report a bug
 
 Open an issue. Include the R version, the operating system, and the output of

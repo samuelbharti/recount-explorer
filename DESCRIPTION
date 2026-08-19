@@ -16,8 +16,10 @@ BugReports: https://github.com/samuelbharti/recount-explorer/issues
 Depends:
     R (>= 4.2)
 Imports:
+    curl,
     DT,
     ggplot2,
+    jsonlite,
     mirai,
     recount3,
     scales,

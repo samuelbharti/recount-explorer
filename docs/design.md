@@ -46,9 +46,8 @@ sources: sra, gtex, tcga, ANSWER_ALS, ega, LIBD, and TARGET_ALS. There are
 
 ## The catalog snapshot
 
-**Status: planned. This part is not built yet.** The app still reads the
-catalog live through `fetch_project_catalog()`. The rest of this section
-describes the design, not the current code.
+**Status: the snapshot is built and committed. The browser module does not
+read it yet, so the app still fetches the catalog live.**
 
 `available_projects()` returns accessions and sample counts. It returns no
 study title and no abstract. A catalog without titles is a list of accession
@@ -57,9 +56,11 @@ numbers that you cannot search.
 The titles and the abstracts sit in a separate metadata file for each project.
 Each file is a small gzipped TSV. To collect all of them the app must make
 about 19,000 HTTP requests. That is a build step. It is not something to do at
-run time.
+run time. The official recount3 study explorer also exports the whole catalog
+as CSV. The build script uses that export when it finds one. That cuts the
+build from 30 minutes to 2.
 
-The app will ship a prebuilt snapshot instead:
+The app ships a prebuilt snapshot instead:
 
 ```mermaid
 flowchart LR
@@ -84,7 +85,7 @@ Two properties matter here.
 First, the build can resume. A job of 19,000 requests against a public server
 hits failures. It must not restart from zero.
 
-Second, the refresh button will be incremental. A full rebuild takes 20 to 40
+Second, the refresh will be incremental. A full rebuild takes 20 to 40
 minutes. Nothing that slow belongs behind a button. The refresh reads the
 accession list again. It requests titles only for studies that it never saw
 before.
@@ -138,7 +139,8 @@ flowchart TD
     app --> gene["mod_gene_explorer"]
     app --> pca["mod_pca_explorer"]
     app --> export["mod_export"]
-    browser --> logic1["logic_recount.R<br/>catalog, load, log2 CPM"]
+    browser --> logic0["logic_catalog.R<br/>snapshot and titles"]
+    browser --> logic1["logic_recount.R<br/>load and log2 CPM"]
     overview --> logic2["logic_analysis.R<br/>QC, PCA, expression"]
     gene --> logic2
     pca --> logic2

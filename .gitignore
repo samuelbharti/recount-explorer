@@ -20,8 +20,12 @@ renv/python/
 # Local working notes and plans
 docs/local/
 
-# Catalog build scratch space, the finished snapshot lives in data/
-data-raw/cache/
+# Catalog build scratch space. The finished snapshot lives in data/.
+# The study explorer export is a 20 MB intermediate: it makes a rebuild take
+# two minutes instead of thirty, but build_catalog.R works without it.
+data-raw/parts/
+data-raw/*.csv
+*.rds.tmp
 
 # Node and Vite, used from the React front end onward
 node_modules/
