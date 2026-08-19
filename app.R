@@ -1,37 +1,47 @@
 # Recount Explorer: browse the recount3 catalog of uniformly processed RNA-seq
 # studies and visualize any of them without writing code.
 #
-# App layer: page layout and module wiring only. Data access and computation
-# live in R/logic_*.R (Shiny-free); each view is a module in R/mod_*.R. The
-# single data contract between modules is the `study` reactive returned by the
-# browser module: list(project, organism, source, rse, log_expr).
+# The interface is React. shinyreact serves a built bundle from www/ and this
+# process runs reactive logic only, with no Shiny UI objects. Computation lives
+# in R/logic_*.R, which stays Shiny-free and testable. R/server_*.R publishes
+# JSON with reactive_output() and renders the plots that the client mounts with
+# ShinyOutput.
 #
-# UI is classic Shiny (no bslib) with a small bespoke stylesheet in www/app.css.
+# The one data contract between the two server halves is the `study` reactive:
+# list(project, organism, source, rse, log_expr), NULL until a study loads.
 
 library(shiny)
+library(shinyreact)
 library(ggplot2)
 
 for (f in list.files("R", pattern = "[.][Rr]$", full.names = TRUE)) {
   source(f)
 }
 
-# Study loading runs on mirai daemons via ExtendedTask, so a slow download
-# never blocks this process. Two daemons: two studies can load concurrently
-# across sessions; further requests queue.
+# Study loading runs on mirai daemons through ExtendedTask, so a slow download
+# never blocks this process. Two daemons: two studies can load at once across
+# sessions, and further requests queue.
 mirai::daemons(2)
 onStop(function() mirai::daemons(0))
 
-ui <- navbarPage(
-  title = "Recount Explorer",
-  header = tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "app.css")
-  ),
-  tabPanel("Browse studies", study_browser_ui("browser")),
-  tabPanel("Study overview", study_overview_ui("overview")),
-  tabPanel("Gene explorer", gene_explorer_ui("gene")),
-  tabPanel("PCA", pca_explorer_ui("pca")),
-  tabPanel("Export", export_ui("export"))
-)
+# Read the catalog and warm the search text once at startup rather than on the
+# first user keystroke. Building the search text costs about half a second.
+local({
+  catalog <- read_catalog()
+  if (is.null(catalog)) {
+    warning(
+      "No catalog snapshot at ",
+      catalog_snapshot_path(),
+      ". Run: Rscript data-raw/build_catalog.R",
+      call. = FALSE
+    )
+  } else {
+    invisible(catalog_haystack(catalog))
+    message("Recount Explorer: ", catalog_summary_line(catalog))
+  }
+})
+
+ui <- page_react_html("www/index.html")
 
 server <- function(input, output, session) {
   if (!recount3_available()) {
@@ -45,11 +55,8 @@ server <- function(input, output, session) {
     )
   }
 
-  study <- study_browser_server("browser")
-  study_overview_server("overview", study)
-  gene_state <- gene_explorer_server("gene", study)
-  pca_state <- pca_explorer_server("pca", study)
-  export_server("export", study, gene_state, pca_state)
+  study <- server_catalog(input, output, session)
+  server_views(input, output, session, study)
 }
 
 shinyApp(ui, server)

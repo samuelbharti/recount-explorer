@@ -16,3 +16,4 @@
 www/app.js linguist-generated=true
 www/style.css linguist-generated=true
 renv.lock linguist-generated=true
+package-lock.json linguist-generated=true
