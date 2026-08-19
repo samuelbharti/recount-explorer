@@ -1,0 +1,59 @@
+# Run with prek: https://github.com/j178/prek
+#   prek install        install the git hooks
+#   prek run --all-files  run everything by hand
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # renv/ and renv.lock are generated and owned by renv. Rewriting their
+      # whitespace just guarantees a diff the next time renv regenerates them.
+      - id: trailing-whitespace
+        exclude: '(\.(rds|RData|rda)$|^renv/|^renv\.lock$)'
+      - id: end-of-file-fixer
+        exclude: '(\.(rds|RData|rda)$|^renv/|^renv\.lock$)'
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: '(^renv/|^renv\.lock$)'
+      - id: detect-private-key
+      # The catalog snapshot is about 7 MB. A file larger than 10 MB is a
+      # mistake. Catch it here, not in review.
+      - id: check-added-large-files
+        args: [--maxkb=10240]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      # Environment files carry API keys and must never reach the repo, even
+      # though .gitignore already covers them. Belt and braces.
+      - id: block-env-files
+        name: block environment files
+        entry: >-
+          Environment files must never be committed. Remove them from the
+          staged changes.
+        language: fail
+        files: '(^|/)(\.Renviron|\.env(\..*)?|.*\.Rproj\.user/)'
+
+      - id: air-format
+        name: air format
+        entry: air format
+        language: system
+        types: [r]
+        require_serial: true
+
+      - id: lintr
+        name: lintr
+        entry: Rscript -e "lintr::lint_dir('.')"
+        language: system
+        types: [r]
+        pass_filenames: false
+        require_serial: true
