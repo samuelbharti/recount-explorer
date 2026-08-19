@@ -1,0 +1,17 @@
+<!--
+  The page the shinyreact R package serves. It is a fragment, not a document:
+  page_react_html() attaches the shinyreact runtime around it.
+
+  The error collector is deliberate. A React bundle that throws while mounting
+  leaves a blank page and no server-side trace, so the headless tests read
+  window.__errs to tell "still loading" apart from "threw on line one".
+-->
+<script>
+  window.__errs = [];
+  window.addEventListener("error", function (e) {
+    window.__errs.push(e.message + " @ " + (e.filename || "?") + ":" + e.lineno);
+  });
+</script>
+<link rel="stylesheet" href="style.css" />
+<div id="root"></div>
+<script src="app.js" defer></script>

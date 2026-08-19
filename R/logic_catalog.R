@@ -362,3 +362,111 @@ study_external_links <- function(row) {
   }
   c("recount3" = "https://rna.recount.bio/")
 }
+
+# A data frame as a list of row objects.
+#
+# Shiny serializes a data frame column wise, so a client that expects an array
+# of rows gets one object of parallel arrays and every .map() on it fails.
+# Going row wise here keeps the JSON shape the React client declares.
+df_to_rows <- function(df) {
+  if (nrow(df) == 0L) {
+    return(list())
+  }
+  unname(lapply(seq_len(nrow(df)), function(i) as.list(df[i, , drop = FALSE])))
+}
+
+# ---- search ------------------------------------------------------------------
+
+# The lowercase text that a search runs against: accession, title, abstract.
+#
+# Pasting 19,000 rows together costs about half a second, which is far too slow
+# to do on every keystroke. Build it once for each catalog and keep it. The
+# identity check is on the catalog build time and row count rather than the
+# whole data frame, because comparing 20 MB of text would cost more than the
+# work it saves.
+catalog_haystack <- local({
+  key <- NULL
+  value <- NULL
+  function(df) {
+    meta <- catalog_meta(df)
+    this <- paste(nrow(df), format(meta$built_at), meta$origin)
+    if (!identical(this, key)) {
+      value <<- tolower(paste(df$project, df$study_title, df$study_abstract))
+      key <<- this
+    }
+    value
+  }
+})
+
+# Filter and sort the catalog. Shiny-free so it can be tested without an app.
+#
+# `query` is matched against the accession, the title and the abstract. Every
+# whitespace separated word has to appear somewhere in the row, which is what
+# makes "glioma mouse" narrow rather than widen the result.
+catalog_search <- function(
+  catalog,
+  query = "",
+  organisms = NULL,
+  sources = NULL,
+  min_samples = NULL,
+  max_samples = NULL,
+  sort_by = "n_samples",
+  sort_dir = "desc"
+) {
+  df <- catalog
+  keep <- rep(TRUE, nrow(df))
+
+  if (length(organisms)) {
+    keep <- keep & df$organism %in% organisms
+  }
+  if (length(sources)) {
+    keep <- keep & df$file_source %in% sources
+  }
+  if (length(min_samples) == 1L && !is.na(min_samples)) {
+    keep <- keep & df$n_samples >= min_samples
+  }
+  if (length(max_samples) == 1L && !is.na(max_samples)) {
+    keep <- keep & df$n_samples <= max_samples
+  }
+
+  query <- if (length(query) == 1L && !is.na(query)) trimws(query) else ""
+  if (nzchar(query)) {
+    haystack <- catalog_haystack(df)
+    for (word in strsplit(tolower(query), "[[:space:]]+")[[1L]]) {
+      if (!nzchar(word)) {
+        next
+      }
+      keep <- keep & grepl(word, haystack, fixed = TRUE)
+    }
+  }
+
+  out <- df[keep, , drop = FALSE]
+  if (!sort_by %in% names(out)) {
+    sort_by <- "n_samples"
+  }
+  ord <- order(out[[sort_by]], decreasing = identical(sort_dir, "desc"))
+  out[ord, , drop = FALSE]
+}
+
+# One page of results, plus the counts the client needs to draw the pager.
+catalog_page <- function(results, page = 1L, page_size = 25L) {
+  page_size <- max(1L, as.integer(page_size))
+  n <- nrow(results)
+  pages <- max(1L, ceiling(n / page_size))
+  page <- min(max(1L, as.integer(page)), pages)
+  from <- (page - 1L) * page_size + 1L
+  to <- min(n, page * page_size)
+  rows <- if (n == 0L) {
+    results[0, , drop = FALSE]
+  } else {
+    results[from:to, , drop = FALSE]
+  }
+  list(
+    rows = rows,
+    matched = n,
+    page = page,
+    pages = pages,
+    from = if (n == 0L) 0L else from,
+    to = to
+  )
+}

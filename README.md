@@ -38,17 +38,12 @@ renv::restore()
 shiny::runApp()
 ```
 
-`renv::restore()` installs the package versions that `renv.lock` records. This
-includes the Bioconductor packages. To install the packages yourself, use this
-code instead:
+`renv::restore()` installs the package versions that `renv.lock` records. That
+includes the Bioconductor packages and shinyreact, which comes from GitHub.
 
-```r
-install.packages(c("shiny", "ggplot2", "DT", "mirai", "scales"))
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
-}
-BiocManager::install("recount3")
-```
+The built front end is committed, so a clone runs with nothing but the R side.
+You need Node only to change the interface. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 The catalog comes from a snapshot in `data/`, so the study list appears at once
 and needs no network. Loading a study downloads it from the recount3 servers.
@@ -89,6 +84,9 @@ explains why.
 ```sh
 prek install        # install the git hooks: air, lintr, secret scanning
 air format .        # format the R code
+npm install         # front end dependencies, needs Node 20 or newer
+npm run build       # rebuild www/app.js and www/style.css
+npm run dev         # rebuild on every change
 ```
 
 ```r
