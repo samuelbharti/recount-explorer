@@ -1,10 +1,13 @@
 name: lint
 
+# Actions minutes are metered on this private repository, so this workflow is
+# deliberately small. There is no push trigger: a push to a branch with an open
+# pull request would bill a second run for the same commit. Formatting and
+# linting also run locally through the prek hooks, so this job is a backstop.
 on:
-  push:
-    branches: [main, dev]
   pull_request:
     branches: [main, dev]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,8 +17,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  format:
-    name: air format
+  # air and lintr share one job on purpose. GitHub bills each job a one minute
+  # minimum, so two jobs of forty seconds cost twice as much as one job of
+  # eighty seconds.
+  lint:
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,19 +31,12 @@ jobs:
       - name: Check formatting
         run: air format . --check
 
-  lint:
-    name: lintr
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
       - uses: r-lib/actions/setup-r@v2
         with:
           use-public-rspm: true
 
-      # Install lintr on its own rather than through setup-r-dependencies. A
-      # static lint does not need recount3, and skipping the Bioconductor
-      # install keeps this job at about two minutes.
+      # lintr on its own, with no Bioconductor packages. A static lint does not
+      # need recount3 installed, and skipping it keeps this job near a minute.
       - name: Install lintr
         run: install.packages("lintr")
         shell: Rscript {0}
