@@ -1,0 +1,55 @@
+name: test
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testthat:
+    name: testthat (${{ matrix.config.os }}, R ${{ matrix.config.r }})
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { os: ubuntu-latest, r: release }
+          - { os: windows-latest, r: release }
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      # The logic layer is tested against fixtures. If a test reaches for the
+      # network, it is a bug in the test.
+      RECOUNT_EXPLORER_OFFLINE: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.config.r }}
+          use-public-rspm: true
+
+      # Dependencies are resolved from DESCRIPTION rather than renv.lock.
+      # renv.lock pins exact versions for local reproducibility, but restoring
+      # roughly ninety Bioconductor packages from source in CI is slow and
+      # brittle; DESCRIPTION plus PPM binaries is neither. The biocViews field
+      # is what tells setup-r-dependencies to enable Bioconductor repositories,
+      # without it the recount3 and SummarizedExperiment installs fail.
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat
+          needs: check
+
+      - name: Run tests
+        run: testthat::test_dir("tests/testthat", stop_on_failure = TRUE)
+        shell: Rscript {0}
