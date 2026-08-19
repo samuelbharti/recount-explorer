@@ -149,7 +149,7 @@ flowchart LR
 ## Architecture
 
 The interface is React. The R process holds reactive logic only. shinyreact
-serves a built bundle out of `www/` and gives the client hooks that read Shiny
+serves a built bundle out of `www/`. It gives the client hooks that read Shiny
 inputs and outputs. There is no Shiny UI object anywhere in this app.
 
 Three layers, and the separation does real work. It is not decoration.
@@ -188,11 +188,11 @@ downloaded figure match the figure on the screen.
 
 ### Why the plots stay on the server
 
-A React client could draw the charts itself, and for a histogram that would be
-the better answer. These are not histograms. A PCA scatter with a colour legend
+A React client can draw the charts itself. For a histogram that is the better
+answer. These are not histograms. A PCA scatter with a colour legend
 and a boxplot with jittered points already exist in `logic_plots.R`, and the
-same builders produce the downloaded PDF. Redrawing them in the browser would
-mean writing each chart twice and then keeping the two versions identical.
+same builders produce the downloaded PDF. Redrawing them in the browser means
+writing each chart twice and then keeping the two copies identical.
 
 So ggplot2 renders, `renderPlot` ships the image, and the client mounts it. The
 client asks for a plot by giving a div the `shiny-plot-output` class, which is
@@ -209,13 +209,31 @@ naming.
 instance the shinyreact runtime owns. Importing React from `node_modules`
 instead loads a second copy, the components read one dispatcher while the hooks
 write the other, and every `useState` throws. The build externalizes React. The JSX
-also runs in classic mode. The automatic JSX runtime would import
-`react/jsx-runtime` and pull that second copy back in.
+also runs in classic mode. The automatic JSX runtime imports
+`react/jsx-runtime` and pulls that second copy back in.
 
 **Shiny serializes a data frame column wise.** A client expecting an array of
 rows gets one object of parallel arrays, and `.map()` throws. Anything the
 client iterates goes through `df_to_rows()` first. For the same reason a
 length-1 vector is wrapped in `I()`, since Shiny unboxes it into a bare scalar.
+
+## Startup cost
+
+The main process must not load recount3.
+
+`requireNamespace("recount3")` takes 5.3 seconds and loads 98 namespaces.
+Calling it on the browse path put that cost on every session. It was 42
+percent of the time from process start to the first visible row.
+
+Browsing needs none of it. The catalog is a local file, and `create_rse()`
+runs on a mirai daemon in its own process, where loading recount3 is both
+wanted and free. So `app.R` asks `recount3_installed()`, which reads
+`system.file()` and never loads anything. `recount3_available()` still exists
+for the daemon side.
+
+Measured: 12.6 s to the first row before, 7.4 s after, 44 namespaces instead
+of 98. A test in `tests/testthat/test-logic_recount.R` runs the check in a
+clean subprocess and asserts recount3 stays unloaded.
 
 ## Concurrency
 

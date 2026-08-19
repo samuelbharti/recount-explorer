@@ -1,6 +1,19 @@
 # recount3 access layer. Shiny-free: plain arguments in, plain data structures
 # out, so everything here can be tested without a running app.
 
+# Is recount3 installed? Answered without loading it.
+#
+# system.file() looks on disk and returns "" when the package is absent. Use
+# this on the main process. requireNamespace() would answer the same question
+# but loads the package to do it, which costs 5.3 seconds and pulls in 98
+# namespaces. Browsing the catalog never needs recount3: the catalog is a local
+# file and create_rse() runs on a mirai daemon in its own process.
+recount3_installed <- function() {
+  nzchar(system.file(package = "recount3"))
+}
+
+# Is recount3 loadable? Call this only where loading it is wanted anyway,
+# which means the daemon, never the main process during a browse.
 recount3_available <- function() {
   requireNamespace("recount3", quietly = TRUE)
 }
