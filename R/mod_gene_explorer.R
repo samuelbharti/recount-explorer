@@ -10,13 +10,15 @@ gene_explorer_ui <- function(id) {
       width = 3,
       h4("Gene"),
       selectizeInput(
-        ns("gene"), "Gene (symbol or Ensembl id)",
+        ns("gene"),
+        "Gene (symbol or Ensembl id)",
         choices = NULL,
         options = list(placeholder = "Type to search...")
       ),
       selectInput(ns("group_by"), "Group by", choices = c("None" = "")),
       radioButtons(
-        ns("geom"), "Plot type",
+        ns("geom"),
+        "Plot type",
         choices = c("Boxplot" = "box", "Violin" = "violin"),
         inline = TRUE
       ),
@@ -35,12 +37,14 @@ gene_explorer_server <- function(id, study) {
     observeEvent(study(), {
       s <- study()
       updateSelectizeInput(
-        session, "gene",
+        session,
+        "gene",
         choices = gene_choices(s$rse),
         server = TRUE
       )
       updateSelectInput(
-        session, "group_by",
+        session,
+        "group_by",
         choices = c("None" = "", metadata_group_choices(s$rse))
       )
     })

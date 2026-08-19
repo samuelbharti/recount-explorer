@@ -10,10 +10,17 @@ plot_qc <- function(qc) {
     ggplot2::theme_minimal(base_size = 14)
 }
 
-plot_gene_expression <- function(df, geom = c("box", "violin"),
-                                 gene_label = NULL, group_label = NULL) {
+plot_gene_expression <- function(
+  df,
+  geom = c("box", "violin"),
+  gene_label = NULL,
+  group_label = NULL
+) {
   geom <- match.arg(geom)
-  gg <- ggplot2::ggplot(df, ggplot2::aes(x = group, y = expression, fill = group))
+  gg <- ggplot2::ggplot(
+    df,
+    ggplot2::aes(x = group, y = expression, fill = group)
+  )
   gg <- if (geom == "violin") {
     gg + ggplot2::geom_violin(alpha = 0.7)
   } else {

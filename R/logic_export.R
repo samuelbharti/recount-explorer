@@ -6,7 +6,11 @@ flatten_coldata <- function(rse) {
   cd <- as.data.frame(SummarizedExperiment::colData(rse))
   is_list <- vapply(cd, is.list, logical(1))
   cd[is_list] <- lapply(cd[is_list], function(col) {
-    vapply(col, function(x) paste(as.character(x), collapse = "; "), character(1))
+    vapply(
+      col,
+      function(x) paste(as.character(x), collapse = "; "),
+      character(1)
+    )
   })
   cbind(sample = colnames(rse), cd)
 }
@@ -22,19 +26,30 @@ expression_export_df <- function(study) {
 # A standalone R script that reproduces the current session: study load,
 # log2 CPM, QC scatter, and (when set in the app) the PCA and gene views.
 # The script only needs recount3 and ggplot2, not this app.
-build_reproduction_script <- function(study, gene_state = NULL, pca_state = NULL) {
+build_reproduction_script <- function(
+  study,
+  gene_state = NULL,
+  pca_state = NULL
+) {
   header <- c(
-    sprintf("# Reproduces a Recount Explorer session for study %s.", study$project),
+    sprintf(
+      "# Reproduces a Recount Explorer session for study %s.",
+      study$project
+    ),
     sprintf(
       "# Generated on %s with R %s, recount3 %s.",
-      format(Sys.Date()), getRversion(), utils::packageVersion("recount3")
+      format(Sys.Date()),
+      getRversion(),
+      utils::packageVersion("recount3")
     ),
     "#",
     "# Data: recount3 (Wilks et al. 2021, Genome Biology 22:323,",
     "# https://doi.org/10.1186/s13059-021-02533-6).",
     sprintf(
       "# Study accession: %s (%s, %s).",
-      study$project, toupper(study$source), study$organism
+      study$project,
+      toupper(study$source),
+      study$organism
     ),
     "",
     "library(recount3)",
@@ -47,10 +62,9 @@ build_reproduction_script <- function(study, gene_state = NULL, pca_state = NULL
     sprintf('projects <- available_projects(organism = "%s")', study$organism),
     "proj_info <- subset(",
     "  projects,",
-    sprintf(
-      '  project == "%s" & file_source == "%s" & project_type == "data_sources"',
-      study$project, study$source
-    ),
+    sprintf('  project == "%s" &', study$project),
+    sprintf('    file_source == "%s" &', study$source),
+    '    project_type == "data_sources"',
     ")",
     "rse <- create_rse(proj_info)",
     'assay(rse, "counts") <- transform_counts(rse)',
@@ -77,14 +91,20 @@ build_reproduction_script <- function(study, gene_state = NULL, pca_state = NULL
   pca_block <- NULL
   if (!is.null(pca_state)) {
     color_code <- if (nzchar(pca_state$color_by)) {
-      sprintf('pca_df$color <- as.character(colData(rse)[["%s"]])', pca_state$color_by)
+      sprintf(
+        'pca_df$color <- as.character(colData(rse)[["%s"]])',
+        pca_state$color_by
+      )
     } else {
       'pca_df$color <- "sample"'
     }
     pca_block <- c(
       sprintf("# PCA on the top %d variable genes.", pca_state$n_genes),
       "vars <- rowSums((log_expr - rowMeans(log_expr))^2)",
-      sprintf("top <- head(order(vars, decreasing = TRUE), %d)", pca_state$n_genes),
+      sprintf(
+        "top <- head(order(vars, decreasing = TRUE), %d)",
+        pca_state$n_genes
+      ),
       "pca <- prcomp(t(log_expr[top, ]), center = TRUE)",
       "pca_df <- as.data.frame(pca$x[, 1:2])",
       color_code,
@@ -97,7 +117,10 @@ build_reproduction_script <- function(study, gene_state = NULL, pca_state = NULL
   gene_block <- NULL
   if (!is.null(gene_state) && nzchar(gene_state$gene)) {
     group_code <- if (nzchar(gene_state$group_by)) {
-      sprintf('  group = as.character(colData(rse)[["%s"]])', gene_state$group_by)
+      sprintf(
+        '  group = as.character(colData(rse)[["%s"]])',
+        gene_state$group_by
+      )
     } else {
       '  group = "all samples"'
     }
