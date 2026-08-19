@@ -37,3 +37,65 @@
   margin-bottom: 8px;
   text-align: left;
 }
+
+/* Study browser: catalog provenance, selected-study details. */
+
+.browser-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.browser-meta {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.muted {
+  color: #777;
+}
+
+.study-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 999px;
+  background: #f5f5f5;
+  font-size: 0.85rem;
+}
+
+.study-warning {
+  border-left: 3px solid #d9822b;
+  background: #fdf6ec;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+/* Abstracts run to 10,000 characters, so the panel scrolls rather than
+   pushing the table off the screen. */
+.abstract-box {
+  max-height: 220px;
+  overflow-y: auto;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border: 1px solid #e3e3e3;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.study-links {
+  margin-top: 10px;
+  display: flex;
+  gap: 14px;
+  font-size: 0.9rem;
+}

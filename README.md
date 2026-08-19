@@ -14,9 +14,10 @@ recount3 API and draws the plots. You write no code.
 
 ## Views
 
-- **Browse studies**: Filter the catalog by organism, data source, and sample
-  count. Then load a study. The app loads the study on a background process, so
-  the app stays responsive.
+- **Browse studies**: All 18,998 studies, with no waiting and no network call.
+  One search box covers the accession, the title, and the abstract text. Select
+  a study to read its abstract, then load it. The app loads the study on a
+  background process, so the app stays responsive.
 - **Study overview**: The headline numbers for the study, a table of the sample
   metadata, and a quality plot of library size against detected genes.
 - **Gene explorer**: Search for one gene. The app plots the expression of that
@@ -49,10 +50,10 @@ if (!requireNamespace("BiocManager", quietly = TRUE)) {
 BiocManager::install("recount3")
 ```
 
-The app downloads data from the recount3 servers two times. The first time is
-when you read the catalog. The second time is when you load a study. recount3
-keeps a local copy of each download through BiocFileCache. Later loads of the
-same study are fast.
+The catalog comes from a snapshot in `data/`, so the study list appears at once
+and needs no network. Loading a study downloads it from the recount3 servers.
+recount3 keeps a local copy of each download through BiocFileCache. Later
+loads of the same study are fast.
 
 CAUTION: Do not start with a GTEx study or a TCGA study. These studies are
 large. They take a long time to load and they need a lot of memory. Start with
@@ -63,7 +64,8 @@ an SRA study of a few dozen samples.
 ```
 app.R                    App layer: page layout, mirai daemons, module wiring
 R/
-  logic_recount.R        recount3 access: catalog, study load, log2 CPM (Shiny-free)
+  logic_catalog.R        Catalog snapshot, study titles and abstracts (Shiny-free)
+  logic_recount.R        recount3 access: study load, log2 CPM (Shiny-free)
   logic_analysis.R       QC, PCA, per-gene expression frames (Shiny-free)
   logic_plots.R          Plot builders shared by views and PDF downloads (Shiny-free)
   logic_export.R         Reproduction script builder, CSV export frames (Shiny-free)

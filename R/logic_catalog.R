@@ -279,3 +279,86 @@ catalog_proj_info <- function(row) {
     stringsAsFactors = FALSE
   )
 }
+
+# ---- runtime -----------------------------------------------------------------
+
+# Where the shipped snapshot lives. The environment variable is an escape
+# hatch for a deployment that keeps the catalog outside the app bundle.
+catalog_snapshot_path <- function() {
+  Sys.getenv("RECOUNT_EXPLORER_CATALOG", "data/recount3_catalog.rds")
+}
+
+read_catalog_file <- function(path) {
+  if (!nzchar(path) || !file.exists(path)) {
+    return(NULL)
+  }
+  df <- tryCatch(readRDS(path), error = function(e) NULL)
+  if (is.null(df) || !valid_catalog(df)) {
+    return(NULL)
+  }
+  df
+}
+
+# The catalog the app runs on. Read once for each process, not once for each
+# session, so every session shares one copy of the 19,000 rows.
+read_catalog <- local({
+  cached <- NULL
+  function(path = catalog_snapshot_path(), refresh = FALSE) {
+    if (refresh || is.null(cached)) {
+      cached <<- read_catalog_file(path)
+    }
+    cached
+  }
+})
+
+# One line of provenance for under the table.
+catalog_summary_line <- function(df) {
+  if (is.null(df)) {
+    return("No catalog snapshot found.")
+  }
+  meta <- catalog_meta(df)
+  built <- if (is.na(meta$built_at)) {
+    "unknown date"
+  } else {
+    format(meta$built_at, "%Y-%m-%d")
+  }
+  sprintf(
+    "%s studies, built %s with recount3 %s.",
+    format(nrow(df), big.mark = ","),
+    built,
+    meta$recount3_version
+  )
+}
+
+# Sorted source names for the filter control, so a new recount3 source appears
+# on its own rather than after someone edits a hardcoded list.
+catalog_sources <- function(df) {
+  sort(unique(as.character(df$file_source)))
+}
+
+# Links out to the archive that published the study.
+study_external_links <- function(row) {
+  project <- as.character(row$project)
+  source <- as.character(row$file_source)
+  if (source == "sra") {
+    return(c(
+      "SRA" = paste0(
+        "https://trace.ncbi.nlm.nih.gov/Traces/study/?acc=",
+        project
+      ),
+      "ENA" = paste0("https://www.ebi.ac.uk/ena/browser/view/", project)
+    ))
+  }
+  if (source == "gtex") {
+    return(c("GTEx Portal" = "https://gtexportal.org/home/"))
+  }
+  if (source == "tcga") {
+    return(c(
+      "GDC Portal" = paste0(
+        "https://portal.gdc.cancer.gov/projects/TCGA-",
+        project
+      )
+    ))
+  }
+  c("recount3" = "https://rna.recount.bio/")
+}
