@@ -1,0 +1,18 @@
+# Normalize to LF everywhere. The working tree is Windows, CI is Linux, and
+# air formats to LF, so without this every file looks modified on one of them.
+* text=auto eol=lf
+
+# Binary artifacts: never diff, never normalize.
+*.rds binary
+*.RData binary
+*.rda binary
+*.png binary
+*.pdf binary
+*.gz binary
+*.woff binary
+*.woff2 binary
+
+# Generated build output, keep it out of diffs and language stats.
+www/app.js linguist-generated=true
+www/style.css linguist-generated=true
+renv.lock linguist-generated=true

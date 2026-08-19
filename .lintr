@@ -1,0 +1,10 @@
+linters: linters_with_defaults(
+    line_length_linter(80),
+    # Shiny modules pull input/output/session out of moduleServer(), which
+    # object_usage_linter reads as undefined globals.
+    object_usage_linter = NULL,
+    # The app is sourced, not packaged, so cross-file helpers look undefined.
+    object_name_linter = NULL
+  )
+exclusions: list("renv", "docs/local", "data-raw/cache", "node_modules")
+encoding: "UTF-8"
