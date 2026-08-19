@@ -1,6 +1,35 @@
-.Rproj.user
+# R
+.Rproj.user/
 .Rhistory
 .RData
+.Ruserdata
+*.Rproj
+
+# Environment and secrets, never commit these
 .Renviron
-.DS_Store
+.env
+.env.*
+
+# renv: the lockfile is committed, the library is not
+renv/library/
+renv/local/
+renv/staging/
+renv/sandbox/
+renv/python/
+
+# Local working notes and plans
+docs/local/
+
+# Catalog build scratch space, the finished snapshot lives in data/
+data-raw/cache/
+
+# Node and Vite, used from the React front end onward
+node_modules/
+.vite/
+
+# Deployment
 rsconnect/
+
+# Misc
+.DS_Store
+*.log
