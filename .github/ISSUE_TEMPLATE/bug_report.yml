@@ -1,0 +1,68 @@
+name: Bug report
+description: The app does not do what the documentation says
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in as much of this form as you can. A complete report gets a
+        faster fix.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Browse studies view
+        2. Search for ...
+        3. Click Load
+    validations:
+      required: true
+
+  - type: input
+    id: study
+    attributes:
+      label: Study accession
+      description: If one study is involved, give its accession. Study size is
+        a common cause of a failed load.
+      placeholder: SRP107565
+
+  - type: dropdown
+    id: view
+    attributes:
+      label: Which view
+      options:
+        - Browse studies
+        - Study overview
+        - Gene explorer
+        - PCA
+        - Export
+        - Not specific to one view
+    validations:
+      required: true
+
+  - type: textarea
+    id: session
+    attributes:
+      label: Session info
+      description: Paste the output of `sessionInfo()`. GitHub renders this as
+        R code. Do not add backticks.
+      render: r
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this
+          required: true
