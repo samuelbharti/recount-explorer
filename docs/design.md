@@ -46,6 +46,10 @@ sources: sra, gtex, tcga, ANSWER_ALS, ega, LIBD, and TARGET_ALS. There are
 
 ## The catalog snapshot
 
+**Status: planned. This part is not built yet.** The app still reads the
+catalog live through `fetch_project_catalog()`. The rest of this section
+describes the design, not the current code.
+
 `available_projects()` returns accessions and sample counts. It returns no
 study title and no abstract. A catalog without titles is a list of accession
 numbers that you cannot search.
@@ -55,7 +59,7 @@ Each file is a small gzipped TSV. To collect all of them the app must make
 about 19,000 HTTP requests. That is a build step. It is not something to do at
 run time.
 
-The app ships a prebuilt snapshot instead:
+The app will ship a prebuilt snapshot instead:
 
 ```mermaid
 flowchart LR
@@ -80,7 +84,7 @@ Two properties matter here.
 First, the build can resume. A job of 19,000 requests against a public server
 hits failures. It must not restart from zero.
 
-Second, the refresh button is incremental. A full rebuild takes 20 to 40
+Second, the refresh button will be incremental. A full rebuild takes 20 to 40
 minutes. Nothing that slow belongs behind a button. The refresh reads the
 accession list again. It requests titles only for studies that it never saw
 before.
@@ -93,7 +97,7 @@ directory.
 
 ```mermaid
 flowchart LR
-    catalog["Catalog snapshot<br/>titles and abstracts"] --> browse["Browse: search,<br/>filter, select"]
+    catalog["Study catalog"] --> browse["Browse: filter<br/>and select"]
     browse --> load["create_rse and<br/>transform_counts"]
     load --> logexpr["log2 CPM matrix"]
     load --> meta["sample metadata"]
@@ -106,10 +110,9 @@ flowchart LR
 
 ## Views
 
-- **Browse studies**: The full catalog. You can search the accession, the
-  title, and the abstract text. You can filter by organism, data source, and
-  sample count. When you select a row, the app shows the abstract and a link to
-  the source archive.
+- **Browse studies**: The catalog. You can filter by organism, data source, and
+  sample count. Search across titles and abstracts arrives with the catalog
+  snapshot.
 - **Study overview**: The headline numbers, a table of the sample metadata, and
   a quality plot of library size against detected genes.
 - **Gene explorer**: Server-side gene search. The app draws a boxplot or a
@@ -135,8 +138,7 @@ flowchart TD
     app --> gene["mod_gene_explorer"]
     app --> pca["mod_pca_explorer"]
     app --> export["mod_export"]
-    browser --> logic0["logic_catalog.R<br/>snapshot and refresh"]
-    browser --> logic1["logic_recount.R<br/>load and log2 CPM"]
+    browser --> logic1["logic_recount.R<br/>catalog, load, log2 CPM"]
     overview --> logic2["logic_analysis.R<br/>QC, PCA, expression"]
     gene --> logic2
     pca --> logic2
