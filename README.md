@@ -1,45 +1,64 @@
 # Recount Explorer
 
-A Shiny app for exploring [recount3](https://bioconductor.org/packages/recount3/):
-hundreds of thousands of uniformly processed human and mouse RNA-seq samples
-from SRA, GTEx, and TCGA. Anyone can pick a study from the catalog, pull it
-through the recount3 API, and visualize it, no code required.
+[![lint](https://github.com/samuelbharti/recount-explorer/actions/workflows/lint.yml/badge.svg)](https://github.com/samuelbharti/recount-explorer/actions/workflows/lint.yml)
+[![test](https://github.com/samuelbharti/recount-explorer/actions/workflows/test.yml/badge.svg)](https://github.com/samuelbharti/recount-explorer/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Recount Explorer is a Shiny app that shows RNA-seq studies from the
+[recount3](https://bioconductor.org/packages/recount3/) project. recount3 holds
+human and mouse RNA-seq samples. One pipeline processed all of these samples in
+the same way. The samples come from SRA, GTEx, TCGA, and four smaller sources.
+
+You select a study from the catalog. The app loads that study through the
+recount3 API and draws the plots. You write no code.
 
 ## Views
 
-- **Browse studies**: filter the catalog by organism, data source, and sample
-  count, then load a study. Loading runs on a background process (ExtendedTask
-  plus mirai), so the app stays responsive while a study downloads.
-- **Study overview**: headline stats, curated sample metadata, and a
-  library-size vs detected-genes QC scatter.
-- **Gene explorer**: search any gene and plot its expression (log2 CPM) split
-  by a metadata group.
-- **PCA**: sample-level PCA on the top variable genes, colored by metadata.
-- **Export**: download the RangedSummarizedExperiment (.rds), the log2 CPM
-  matrix (.csv.gz), the full sample metadata (.csv), and a standalone R script
-  that reproduces the current session with citation-ready provenance. The gene
-  and PCA views also download their exact on-screen plot as PDF.
+- **Browse studies**: Filter the catalog by organism, data source, and sample
+  count. Then load a study. The app loads the study on a background process, so
+  the app stays responsive.
+- **Study overview**: The headline numbers for the study, a table of the sample
+  metadata, and a quality plot of library size against detected genes.
+- **Gene explorer**: Search for one gene. The app plots the expression of that
+  gene as log2 CPM. You can split the plot by a metadata column.
+- **PCA**: Principal component analysis of the samples. The app uses the genes
+  with the highest variance. You can color the points by metadata.
+- **Export**: Download the RangedSummarizedExperiment (`.rds`), the log2 CPM
+  matrix (`.csv.gz`), and the sample metadata (`.csv`). The app also writes an R
+  script that repeats the current session. The gene view and the PCA view
+  download the plot on the screen as a PDF.
 
 ## Run it
 
 ```r
-install.packages(c("shiny", "ggplot2", "DT", "mirai"))
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
-}
-BiocManager::install("recount3")
+install.packages("renv")
+renv::restore()
 
 shiny::runApp()
 ```
 
-The first catalog fetch and each first study load download data from the
-recount3 servers; recount3 caches everything locally via BiocFileCache, so
-repeat loads are fast. Large studies (GTEx, TCGA) take a while and need a lot
-of memory; start with an SRA study of a few dozen samples.
+`renv::restore()` installs the package versions that `renv.lock` records. This
+includes the Bioconductor packages. To install the packages yourself, use this
+code instead:
+
+```r
+install.packages(c("shiny", "ggplot2", "DT", "mirai", "scales"))
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager")
+}
+BiocManager::install("recount3")
+```
+
+The app downloads data from the recount3 servers two times. The first time is
+when you read the catalog. The second time is when you load a study. recount3
+keeps a local copy of each download through BiocFileCache. Later loads of the
+same study are fast.
+
+CAUTION: Do not start with a GTEx study or a TCGA study. These studies are
+large. They take a long time to load and they need a lot of memory. Start with
+an SRA study of a few dozen samples.
 
 ## Structure
-
-The UI is classic Shiny (no bslib) with a small bespoke stylesheet.
 
 ```
 app.R                    App layer: page layout, mirai daemons, module wiring
@@ -47,16 +66,59 @@ R/
   logic_recount.R        recount3 access: catalog, study load, log2 CPM (Shiny-free)
   logic_analysis.R       QC, PCA, per-gene expression frames (Shiny-free)
   logic_plots.R          Plot builders shared by views and PDF downloads (Shiny-free)
-  logic_export.R         Reproducible script builder, CSV export frames (Shiny-free)
-  mod_study_browser.R    Catalog browsing, async load, returns the shared `study` reactive
+  logic_export.R         Reproduction script builder, CSV export frames (Shiny-free)
+  mod_study_browser.R    Catalog browsing, background load, returns the study reactive
   mod_study_overview.R   Metadata and QC views
   mod_gene_explorer.R    Per-gene expression by group, plot PDF download
   mod_pca_explorer.R     Sample-level PCA, plot PDF download
-  mod_export.R           Data downloads and reproducible script
+  mod_export.R           Data downloads and reproduction script
   utils.R                Small helpers
-www/app.css              Bespoke styles (stat tiles, spacing)
-docs/plans/              Design plans
+tests/testthat/          Logic layer tests. They use a fixture and never the network
+www/app.css              Styles for the stat tiles and the spacing
+docs/design.md           Architecture and design notes
 ```
 
-The design plan lives in
-[docs/plans/recount-explorer.md](docs/plans/recount-explorer.md).
+The computation sits in a Shiny-free logic layer. You can test that layer
+without a running app. Each view is a Shiny module. [docs/design.md](docs/design.md)
+explains why.
+
+## Development
+
+```sh
+prek install        # install the git hooks: air, lintr, secret scanning
+air format .        # format the R code
+```
+
+```r
+install.packages(c("testthat", "lintr"))   # dev tools, not in renv.lock
+lintr::lint_dir(".")
+testthat::test_dir("tests/testthat")
+```
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the details. It covers the branch
+convention and the rebuild of the catalog snapshot.
+
+## Citation
+
+If you use this app in your work, cite both this app and the recount3 paper.
+[CITATION.cff](CITATION.cff) holds the same information in machine-readable
+form.
+
+> Wilks C, Zheng SC, Chen FY, et al. recount3: summaries and queries for
+> large-scale RNA-seq expression and splicing. *Genome Biology* 22, 323 (2021).
+> https://doi.org/10.1186/s13059-021-02533-6
+
+## Author
+
+**Samuel Bharti**
+
+[www.samuelbharti.com](https://www.samuelbharti.com) ·
+[samuelbharti.io@gmail.com](mailto:samuelbharti.io@gmail.com) ·
+[ORCID 0000-0003-4190-7058](https://orcid.org/0000-0003-4190-7058) ·
+[GitHub](https://github.com/samuelbharti)
+
+## License
+
+MIT. See [LICENSE](LICENSE). The recount3 project sets the terms for the
+recount3 data itself. Read [rna.recount.bio](https://rna.recount.bio/) for
+those terms.
