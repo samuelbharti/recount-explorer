@@ -1,0 +1,15 @@
+^renv$
+^renv\.lock$
+^\.github$
+^\.pre-commit-config\.yaml$
+^air\.toml$
+^\.lintr$
+^data-raw$
+^docs$
+^www$
+^app\.R$
+^LICENSE\.md$
+^CITATION\.cff$
+^CONTRIBUTING\.md$
+^CODE_OF_CONDUCT\.md$
+^SECURITY\.md$
