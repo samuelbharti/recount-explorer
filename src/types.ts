@@ -1,6 +1,12 @@
 // Shapes the R server publishes through reactive_output(). Keep these in step
 // with R/server_catalog.R and R/server_views.R.
 
+export interface CatalogStatus {
+  state: "ready" | "missing";
+  message: string;
+  total?: number;
+}
+
 export interface CatalogFacets {
   organisms: string[];
   sources: string[];

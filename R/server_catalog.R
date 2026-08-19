@@ -20,12 +20,24 @@ CATALOG_ROW_COLUMNS <- c(
 server_catalog <- function(input, output, session) {
   catalog <- read_catalog()
 
-  output$catalog_ready <- reactive_output({
-    !is.null(catalog)
-  })
-
-  output$catalog_summary <- reactive_output({
-    catalog_summary_line(catalog)
+  # Published first, so the client can say what is happening instead of
+  # showing an empty card while the session warms up.
+  output$catalog_status <- reactive_output({
+    if (is.null(catalog)) {
+      return(list(
+        state = "missing",
+        message = paste(
+          "No catalog snapshot at",
+          paste0(catalog_snapshot_path(), "."),
+          "Run Rscript data-raw/build_catalog.R to build one."
+        )
+      ))
+    }
+    list(
+      state = "ready",
+      message = catalog_summary_line(catalog),
+      total = nrow(catalog)
+    )
   })
 
   # Everything the client needs to draw its filter controls, so no list of

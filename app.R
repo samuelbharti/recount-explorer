@@ -44,7 +44,9 @@ local({
 ui <- page_react_html("www/index.html")
 
 server <- function(input, output, session) {
-  if (!recount3_available()) {
+  # recount3_installed(), not recount3_available(): the second one loads the
+  # package, and nothing on this path needs it loaded.
+  if (!recount3_installed()) {
     showNotification(
       paste(
         "The recount3 package is not installed.",
