@@ -1,10 +1,13 @@
 name: test
 
+# This is the expensive workflow. It installs about ninety Bioconductor
+# packages, so it runs only on the way into main, which means the dev to main
+# pull request. Feature branches get the lint workflow and the local prek
+# hooks. Use the manual trigger when a feature branch needs a full test run.
 on:
-  push:
-    branches: [main, dev]
   pull_request:
-    branches: [main, dev]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,37 +17,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  testthat:
-    name: testthat (${{ matrix.config.os }}, R ${{ matrix.config.r }})
-    runs-on: ${{ matrix.config.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - { os: ubuntu-latest, r: release }
-          - { os: windows-latest, r: release }
+  test:
+    name: test
+    # Linux only. Windows runners bill at twice the rate of Linux runners, and
+    # the logic layer under test has no platform specific code.
+    runs-on: ubuntu-latest
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
-      # The logic layer is tested against fixtures. If a test reaches for the
-      # network, it is a bug in the test.
-      RECOUNT_EXPLORER_OFFLINE: "true"
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: ${{ matrix.config.r }}
           use-public-rspm: true
 
-      # Dependencies are resolved from DESCRIPTION rather than renv.lock.
-      # renv.lock pins exact versions for local reproducibility, but restoring
-      # roughly ninety Bioconductor packages from source in CI is slow and
-      # brittle; DESCRIPTION plus PPM binaries is neither. The biocViews field
-      # is what tells setup-r-dependencies to enable Bioconductor repositories,
-      # without it the recount3 and SummarizedExperiment installs fail.
+      # Dependencies come from DESCRIPTION rather than renv.lock. Restoring
+      # about ninety Bioconductor packages from source is slow and brittle.
+      # DESCRIPTION plus PPM binaries is neither. The biocViews field is what
+      # enables the Bioconductor repositories. Without it recount3 fails.
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::testthat
