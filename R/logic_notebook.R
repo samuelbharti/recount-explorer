@@ -98,11 +98,12 @@ build_reproduction_notebook <- function(
   study,
   gene_state = NULL,
   pca_state = NULL,
-  format = c("qmd", "rmd")
+  format = c("qmd", "rmd"),
+  quality_state = NULL
 ) {
   format <- match.arg(format)
   sections <- script_sections(
-    build_reproduction_script(study, gene_state, pca_state)
+    build_reproduction_script(study, gene_state, pca_state, quality_state)
   )
 
   front <- notebook_front_matter(
@@ -154,12 +155,24 @@ build_reproduction <- function(
   study,
   gene_state = NULL,
   pca_state = NULL,
-  format = "r"
+  format = "r",
+  quality_state = NULL
 ) {
   if (identical(format, "r")) {
-    return(build_reproduction_script(study, gene_state, pca_state))
+    return(build_reproduction_script(
+      study,
+      gene_state,
+      pca_state,
+      quality_state
+    ))
   }
-  build_reproduction_notebook(study, gene_state, pca_state, format = format)
+  build_reproduction_notebook(
+    study,
+    gene_state,
+    pca_state,
+    format = format,
+    quality_state = quality_state
+  )
 }
 
 reproduction_extension <- function(format) {

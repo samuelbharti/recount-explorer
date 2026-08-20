@@ -121,3 +121,39 @@ withr::defer(
   brand_colors(testthat::test_path("..", "..", "_brand.yml"), refresh = TRUE),
   teardown_env()
 )
+
+test_that("the qualitative scale stretches past its eight named colours", {
+  # metadata_group_choices() offers columns with up to 30 levels, so a scale
+  # that stops at eight is what made grouped plots error.
+  for (n in c(9L, 12L, 30L)) {
+    scale <- brand_qualitative(n = n)
+
+    expect_length(scale, n)
+    expect_false(any(is.na(scale)), info = n)
+    for (colour in scale) {
+      expect_match(colour, "^#[0-9A-Fa-f]{6}$", info = n)
+    }
+  }
+})
+
+test_that("asking for fewer colours takes them from the front unchanged", {
+  full <- brand_qualitative()
+
+  expect_equal(brand_qualitative(n = 3), full[1:3])
+  expect_equal(brand_qualitative(n = 8), full)
+  # A zero or negative count still has to give something usable back.
+  expect_length(brand_qualitative(n = 0), 1L)
+})
+
+test_that("the sequential ramp runs light to dark and inverts for dark mode", {
+  light <- brand_sequential(FALSE)
+  dark <- brand_sequential(TRUE)
+
+  expect_length(light, 3L)
+  expect_length(dark, 3L)
+  brightness <- function(x) mean(grDevices::col2rgb(x))
+  # Light mode: pale low end, dark high end. Dark mode is the other way round,
+  # so the low end never disappears into the page.
+  expect_gt(brightness(light[1]), brightness(light[3]))
+  expect_lt(brightness(dark[1]), brightness(dark[3]))
+})

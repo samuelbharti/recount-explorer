@@ -80,14 +80,6 @@
   text-align: left;
 }
 
-/* Footer ----------------------------------------------------------------- */
-
-.app-footer {
-  padding: 0.75rem 1rem;
-  font-size: 0.8rem;
-  color: var(--bs-secondary-color);
-}
-
 /* Load progress ---------------------------------------------------------- */
 
 .load-progress {
@@ -102,13 +94,54 @@
   height: 0.4rem;
 }
 
-/* Footer ----------------------------------------------------------------- */
+/* Footer -------------------------------------------------------------------
+ *
+ * page_navbar's own footer slot sits inside the same flex layout bslib uses
+ * to give the Browse tab a fillable, full-height table. That layout locks
+ * the whole page to exactly one viewport height, so the footer's position
+ * depended on which tab was open: below the fold on a plot-heavy tab, or
+ * floating mid-page on a short one, because it was never a real fixture of
+ * the page, just whatever was left over after that tab's content.
+ *
+ * Fixed positioning takes it out of that layout entirely, so it renders in
+ * the same place on every tab. The padding-bottom and the tab-content
+ * scrollbar below give a tall tab (Overview, Quality) somewhere to put the
+ * content the fixed footer would otherwise sit on top of.
+ */
+
+.app-footer {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1030;
+  background: var(--bs-body-bg);
+  border-top: 1px solid var(--bs-border-color);
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+}
 
 .app-footer-row {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.5rem 1.5rem;
+}
+
+/* bslib pins the page to exactly one viewport height (padding: 0px inline)
+ * so the Browse tab can size its table against it. !important overrides
+ * that inline style deliberately: every tab still needs room at the bottom
+ * for the now-fixed footer, not just Browse. */
+body.bslib-page-navbar {
+  padding-bottom: 3.5rem !important;
+}
+
+/* A tab taller than the space that leaves scrolls on its own, rather than
+ * running past the page's fixed height and disappearing under the footer
+ * with no way to reach it. */
+.tab-content {
+  overflow-y: auto;
+  min-height: 0;
 }
 
 /* Study header on the overview ------------------------------------------- */
@@ -183,4 +216,67 @@
   border-radius: var(--bs-border-radius);
   background: var(--bs-success-bg-subtle);
   color: var(--bs-success-text-emphasis);
+}
+
+/* Guided tour -------------------------------------------------------------
+ *
+ * driver.js ships its own white popover regardless of the page's theme.
+ * These overrides route it through the same Bootstrap variables bslib
+ * already themes, so the tour looks like part of the app rather than a
+ * plugin dropped on top of it, and follows dark mode without a second copy
+ * of these rules.
+ */
+
+.driver-popover {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+}
+
+.driver-popover-title {
+  color: var(--bs-emphasis-color);
+}
+
+.driver-popover-description {
+  color: var(--bs-body-color);
+}
+
+.driver-popover-progress-text {
+  color: var(--bs-secondary-color);
+}
+
+.driver-popover-close-btn {
+  color: var(--bs-secondary-color);
+}
+
+.driver-popover-navigation-btns button {
+  background: var(--bs-primary);
+  color: var(--bs-white, #fff);
+  border: none;
+  border-radius: var(--bs-border-radius);
+  text-shadow: none;
+}
+
+.driver-popover-navigation-btns button.driver-popover-btn-disabled {
+  opacity: 0.5;
+}
+
+.driver-popover-arrow {
+  border-color: transparent;
+}
+
+/* The five arrow sides each carry the matching border colour, since
+ * driver.js draws the arrow as a CSS border triangle rather than a shape. */
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--bs-body-bg);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--bs-body-bg);
+}
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--bs-body-bg);
+}
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--bs-body-bg);
 }

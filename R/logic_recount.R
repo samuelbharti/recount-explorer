@@ -48,45 +48,162 @@ log_cpm <- function(rse) {
 # Named vector for the gene selectize: values are gene ids, labels are
 # "symbol (id)" so both are searchable.
 gene_choices <- function(rse) {
+  ids <- rownames(rse)
+  symbols <- gene_symbols(rse)
+  stats::setNames(ids, paste0(unname(symbols[ids]), " (", ids, ")"))
+}
+
+# Gene id to display symbol, falling back to the id where no symbol is
+# recorded. Named by gene id so a lookup is a subset, not a match.
+gene_symbols <- function(rse) {
   rd <- SummarizedExperiment::rowData(rse)
   ids <- rownames(rse)
   symbols <- if ("gene_name" %in% names(rd)) as.character(rd$gene_name) else ids
-  symbols[is.na(symbols) | symbols == ""] <- ids[is.na(symbols) | symbols == ""]
-  stats::setNames(ids, paste0(symbols, " (", ids, ")"))
+  blank <- is.na(symbols) | !nzchar(symbols)
+  symbols[blank] <- ids[blank]
+  stats::setNames(symbols, ids)
 }
 
 # Metadata columns usable for grouping: categorical, with a sane number of
 # levels for a boxplot or a color scale.
+#
+# Returns a named vector, so the control says how many groups a column will
+# make before you pick it. Sorted by that count, because a two-level column is
+# almost always the one worth plotting and a twenty-level one almost never is.
 metadata_group_choices <- function(rse, max_levels = 30) {
   cd <- as.data.frame(SummarizedExperiment::colData(rse))
-  ok <- vapply(
+  n_samples <- ncol(rse)
+  counts <- vapply(
     cd,
     function(x) {
+      if (is.list(x) || !(is.character(x) || is.factor(x) || is.logical(x))) {
+        return(NA_integer_)
+      }
       x <- x[!is.na(x)]
-      (is.character(x) || is.factor(x) || is.logical(x)) &&
-        length(unique(x)) >= 2 &&
-        length(unique(x)) <= max_levels
+      length(unique(x))
     },
-    logical(1)
+    integer(1)
   )
-  names(cd)[ok]
+  # A column with one distinct value per sample is an identifier, not a
+  # grouping. Grouping by it makes one box per sample, which is noise.
+  ok <- !is.na(counts) &
+    counts >= 2 &
+    counts <= max_levels &
+    !(counts == n_samples & n_samples > 2)
+
+  keep <- names(cd)[ok]
+  keep <- keep[order(counts[ok], keep)]
+  stats::setNames(
+    keep,
+    sprintf("%s (%d groups)", keep, counts[keep])
+  )
 }
 
-# Curated sample metadata for display: drop columns that are all NA or
-# constant, cap the column count so DT stays responsive.
-metadata_table <- function(rse, max_cols = 40) {
-  cd <- as.data.frame(SummarizedExperiment::colData(rse))
-  informative <- vapply(
+# Columns that carry something a reader can act on.
+metadata_informative <- function(cd) {
+  vapply(
     cd,
     function(x) {
+      if (is.list(x)) {
+        return(FALSE)
+      }
       x <- x[!is.na(x)]
-      length(x) > 0 && length(unique(x)) > 1 && !is.list(x)
+      length(x) > 0 && length(unique(x)) > 1
     },
     logical(1)
   )
-  keep <- names(cd)[informative]
-  keep <- utils::head(keep, max_cols)
-  cbind(sample = colnames(rse), cd[, keep, drop = FALSE])
+}
+
+# Which columns to show first, and which exist at all.
+#
+# recount3 gives every sample 175 columns. Showing them all means a horizontal
+# scrollbar with no end, and showing the first forty means forty arbitrary
+# ones. So the default is chosen: the sample id, the study's own annotation,
+# then the quality metrics people judge a sample on. Everything else stays
+# available through the column picker and the per-sample detail view.
+metadata_columns <- function(rse, max_default = 8L, max_quality = 4L) {
+  cd <- as.data.frame(SummarizedExperiment::colData(rse))
+  informative <- names(cd)[metadata_informative(cd)]
+
+  # Short values first: a column of free-text abstracts is informative and
+  # still ruins the table it lands in.
+  width_of <- function(name) {
+    stats::median(nchar(as.character(cd[[name]])), na.rm = TRUE)
+  }
+  study_cols <- grep("^(sra|study)[.]", informative, value = TRUE)
+  study_cols <- Filter(function(n) isTRUE(width_of(n) <= 40), study_cols)
+  quality_cols <- intersect(unname(QC_METRICS), informative)
+
+  # The quality metrics get their own budget rather than queueing behind the
+  # study annotation. An SRA study can carry thirty sra.* columns, and without
+  # a reserved share they would fill every slot and push out the numbers the
+  # view exists to show.
+  quality_take <- utils::head(quality_cols, max_quality)
+  id_cols <- c("sample", intersect("external_id", informative))
+  study_take <- utils::head(
+    setdiff(study_cols, id_cols),
+    max(max_default - length(id_cols) - length(quality_take), 0L)
+  )
+
+  default <- utils::head(
+    unique(c(id_cols, study_take, quality_take, informative)),
+    max_default
+  )
+
+  list(default = default, all = unique(c("sample", informative)))
+}
+
+# Sample metadata for display, in the requested columns.
+metadata_table <- function(rse, columns = NULL) {
+  cd <- as.data.frame(SummarizedExperiment::colData(rse))
+  cd <- cbind(sample = colnames(rse), cd, stringsAsFactors = FALSE)
+  if (is.null(columns)) {
+    columns <- metadata_columns(rse)$default
+  }
+  columns <- unique(c("sample", intersect(columns, names(cd))))
+  flat <- lapply(cd[columns], function(x) {
+    if (is.list(x)) {
+      return(vapply(
+        x,
+        function(v) paste(as.character(v), collapse = "; "),
+        character(1)
+      ))
+    }
+    x
+  })
+  as.data.frame(flat, stringsAsFactors = FALSE, check.names = FALSE)
+}
+
+# Every field recount3 records for one sample, as field and value rows.
+#
+# This is what makes the wide table unnecessary: the answer to "what else does
+# this sample have" is one click down, not 170 columns to the right.
+sample_detail <- function(rse, sample) {
+  idx <- match(sample, colnames(rse))
+  if (is.na(idx)) {
+    return(NULL)
+  }
+  cd <- SummarizedExperiment::colData(rse)
+  value <- vapply(
+    names(cd),
+    function(name) {
+      v <- cd[[name]][[idx]]
+      # Drop the missing parts before pasting: as.character(NA) is the string
+      # "NA", which would fill the detail view with rows that say nothing.
+      v <- v[!is.na(v)]
+      if (is.null(v) || !length(v)) {
+        return(NA_character_)
+      }
+      paste(as.character(v), collapse = "; ")
+    },
+    character(1)
+  )
+  out <- data.frame(
+    field = names(cd),
+    value = unname(value),
+    stringsAsFactors = FALSE
+  )
+  out[!is.na(out$value) & nzchar(out$value), , drop = FALSE]
 }
 
 # ---- staged loading ----------------------------------------------------------

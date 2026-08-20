@@ -80,17 +80,21 @@ test_that("gene_expression_df falls back to one group when none is given", {
   study <- fixture_study()
   gene <- rownames(study$rse)[1]
 
+  # The group is a factor now, because collapse_levels() decides the level
+  # order and the plot builders count levels off it.
   expect_equal(
-    unique(gene_expression_df(study, gene)$group),
+    as.character(unique(gene_expression_df(study, gene)$group)),
     "all samples"
   )
   expect_equal(
-    unique(gene_expression_df(study, gene, group_by = "")$group),
+    as.character(unique(gene_expression_df(study, gene, group_by = "")$group)),
     "all samples"
   )
   # A column that is not in colData should not error, it should fall back.
   expect_equal(
-    unique(gene_expression_df(study, gene, group_by = "nope")$group),
+    as.character(unique(
+      gene_expression_df(study, gene, group_by = "nope")$group
+    )),
     "all samples"
   )
 })
@@ -103,5 +107,87 @@ test_that("gene_expression_df labels missing group values, never drops", {
   df <- gene_expression_df(study, gene, group_by = "tissue")
 
   expect_equal(nrow(df), ncol(study$rse))
-  expect_true("NA" %in% df$group)
+  # Spelled out rather than the literal "NA", so the legend reads as a group
+  # rather than as a missing value.
+  expect_true("not recorded" %in% as.character(df$group))
+})
+
+test_that("collapse_levels leaves a small column alone", {
+  x <- c("a", "b", "a", "c")
+
+  out <- collapse_levels(x)
+
+  expect_s3_class(out, "factor")
+  expect_setequal(levels(out), c("a", "b", "c"))
+})
+
+test_that("collapse_levels keeps the most frequent and lumps the rest", {
+  # Ten levels, but "common" dominates. With a cap of 3 only the two most
+  # frequent survive and the other eight become one level.
+  x <- c(rep("common", 10), rep("second", 5), sprintf("rare%02d", 1:8))
+
+  out <- collapse_levels(x, max_levels = 3)
+
+  expect_equal(nlevels(out), 3L)
+  expect_true(all(c("common", "second") %in% levels(out)))
+  expect_true("other (8 more)" %in% levels(out))
+  expect_equal(sum(out == "other (8 more)"), 8L)
+})
+
+test_that("collapse_levels makes missing values their own group", {
+  # "not recorded" is usually the group worth seeing, so it must not vanish.
+  out <- collapse_levels(c("a", NA, "b", ""))
+
+  expect_true("not recorded" %in% levels(out))
+  expect_equal(sum(out == "not recorded"), 2L)
+})
+
+test_that("gene_expression_df collapses a grouping column with many levels", {
+  study <- fixture_study()
+  gene <- rownames(study$rse)[[1]]
+
+  df <- gene_expression_df(study, gene, group_by = "donor", max_levels = 4)
+
+  expect_s3_class(df$group, "factor")
+  expect_lte(nlevels(df$group), 4L)
+  expect_equal(nrow(df), ncol(study$rse))
+})
+
+test_that("run_pca keeps the gene loadings", {
+  study <- fixture_study()
+
+  pca <- run_pca(study$log_expr, n_genes = 50, n_pcs = 4)
+
+  expect_equal(dim(pca$loadings), c(50L, 4L))
+  expect_true(all(rownames(pca$loadings) %in% rownames(study$rse)))
+})
+
+test_that("pca_loadings ranks on absolute loading but keeps the sign", {
+  study <- fixture_study()
+  pca <- run_pca(study$log_expr, n_genes = 50, n_pcs = 4)
+
+  df <- pca_loadings(pca, n = 10)
+
+  expect_equal(nrow(df), 10L)
+  expect_equal(names(df), c("gene_id", "label", "loading", "direction"))
+  expect_false(is.unsorted(rev(abs(df$loading))))
+  expect_true(all(df$direction %in% c("positive", "negative")))
+})
+
+test_that("pca_loadings uses gene symbols when it is given them", {
+  study <- fixture_study()
+  pca <- run_pca(study$log_expr, n_genes = 50, n_pcs = 4)
+
+  df <- pca_loadings(pca, symbols = gene_symbols(study$rse), n = 5)
+
+  expect_false(identical(df$label, df$gene_id))
+  expect_true(all(df$label %in% gene_symbols(study$rse)))
+})
+
+test_that("pca_loadings clamps a PC beyond the ones computed", {
+  study <- fixture_study()
+  pca <- run_pca(study$log_expr, n_genes = 50, n_pcs = 3)
+
+  expect_no_error(pca_loadings(pca, pc = 99))
+  expect_equal(nrow(pca_loadings(pca, pc = 99, n = 5)), 5L)
 })

@@ -83,16 +83,35 @@ ui <- page_navbar(
     # wiring a single one by hand.
     useBusyIndicators(),
     busyIndicatorOptions(spinner_type = "dots", spinner_delay = "0.2s"),
-    tags$head(tags$link(rel = "stylesheet", href = "app.css"))
+    tags$head(
+      # driver.js, vendored in www/ so the tour needs no network call. See
+      # www/driver.js for the version and where to get an update. Loaded
+      # before app.css, so app.css's popover overrides win the cascade at
+      # equal specificity instead of driver.css's own white/black defaults.
+      tags$link(rel = "stylesheet", href = "driver.css"),
+      tags$script(src = "driver.js"),
+      tags$script(src = "tour.js"),
+      tags$link(rel = "stylesheet", href = "app.css")
+    )
   ),
   nav_panel("Browse", study_browser_ui("browser")),
   nav_panel("Overview", study_overview_ui("overview")),
+  nav_panel("Quality", quality_ui("quality")),
   nav_panel("Genes", gene_explorer_ui("gene")),
   nav_panel("PCA", pca_explorer_ui("pca")),
   nav_panel("Export", export_ui("export")),
   nav_panel("About", about_ui()),
   nav_spacer(),
   nav_item(uiOutput("study_chip", inline = TRUE)),
+  nav_item(
+    tags$button(
+      id = "take_tour",
+      type = "button",
+      class = "btn btn-sm btn-outline-secondary",
+      bsicons::bs_icon("compass"),
+      "Take a tour"
+    )
+  ),
   nav_item(input_dark_mode(id = "dark_mode")),
   footer = div(
     class = "app-footer",
@@ -158,9 +177,10 @@ server <- function(input, output, session) {
 
   study <- study_browser_server("browser")
   study_overview_server("overview", study, dark)
+  quality_state <- quality_server("quality", study, dark)
   gene_state <- gene_explorer_server("gene", study, dark)
   pca_state <- pca_explorer_server("pca", study, dark)
-  export_server("export", study, gene_state, pca_state)
+  export_server("export", study, gene_state, pca_state, quality_state)
 
   # The loaded study follows the user across every view, so it belongs in the
   # navbar rather than on one page.

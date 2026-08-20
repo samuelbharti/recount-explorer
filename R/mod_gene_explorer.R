@@ -26,10 +26,11 @@ gene_explorer_ui <- function(id) {
         choices = c("Boxplot" = "box", "Violin" = "violin"),
         inline = TRUE
       ),
-      downloadButton(ns("pdf"), "Download PDF", class = "btn-sm")
+      font_size_ui(ns)
     ),
     card(
-      card_header("Expression, log2 CPM"),
+      full_screen = TRUE,
+      card_header("Expression, log2 CPM", plot_download_ui(ns, "plot")),
       card_body(plotOutput(ns("plot"), height = "540px"))
     )
   )
@@ -71,23 +72,22 @@ gene_explorer_server <- function(id, study, dark = reactive(FALSE)) {
         geom = input$geom %||% "box",
         gene_label = gene_label(),
         group_label = if (isTruthy(input$group_by)) input$group_by else NULL,
-        dark = dark_mode
+        dark = dark_mode,
+        font_size = input$font_size %||% 21
       )
     }
 
     output$plot <- renderPlot({
       validate(need(study(), "Load a study from the Browse view first."))
       validate(need(input$gene, "Search for a gene in the sidebar."))
-      current_plot(dark())
+      safe_plot(current_plot(dark()), dark())
     })
 
-    output$pdf <- downloadHandler(
-      filename = function() {
-        paste0(req(study())$project, "_", req(input$gene), ".pdf")
-      },
-      content = function(file) {
-        ggsave(file, plot = current_plot(FALSE), width = 9, height = 6)
-      }
+    register_plot_downloads(
+      output,
+      "plot",
+      filename = function() paste0(req(study())$project, "_", req(input$gene)),
+      builder = current_plot
     )
 
     reactive({

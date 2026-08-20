@@ -62,14 +62,26 @@ download_row <- function(id, label, hint) {
   )
 }
 
-export_server <- function(id, study, gene_state, pca_state) {
+export_server <- function(
+  id,
+  study,
+  gene_state,
+  pca_state,
+  quality_state = NULL
+) {
   moduleServer(id, function(input, output, session) {
     format <- reactive(input$format %||% "r")
 
     session_text <- reactive({
       s <- study()
       req(s)
-      build_reproduction(s, gene_state(), pca_state(), format = format())
+      build_reproduction(
+        s,
+        gene_state(),
+        pca_state(),
+        format = format(),
+        quality_state = if (is.null(quality_state)) NULL else quality_state()
+      )
     })
 
     output$preview_title <- renderText({

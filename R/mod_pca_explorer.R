@@ -26,17 +26,37 @@ pca_explorer_ui <- function(id) {
         "Colour by",
         choices = c("No colouring" = "")
       ),
-      downloadButton(ns("pdf"), "Download PDF", class = "btn-sm")
+      numericInput(
+        ns("loading_pc"),
+        "Loadings for PC",
+        value = 1,
+        min = 1,
+        max = 10,
+        step = 1
+      ),
+      plot_controls_ui(ns, size_default = 2.5)
     ),
     layout_columns(
-      col_widths = c(8, 4),
+      col_widths = c(8, 4, 12),
       card(
-        card_header("PC1 against PC2"),
+        full_screen = TRUE,
+        card_header("PC1 against PC2", plot_download_ui(ns, "scatter")),
         card_body(plotOutput(ns("scatter"), height = "500px"))
       ),
       card(
-        card_header("Variance explained"),
+        full_screen = TRUE,
+        card_header("Variance explained", plot_download_ui(ns, "scree")),
         card_body(plotOutput(ns("scree"), height = "500px"))
+      ),
+      # The scatter shows that samples separate. This shows why, which is the
+      # question a reader asks next and the app could not answer before.
+      card(
+        full_screen = TRUE,
+        card_header(
+          "Genes driving this component",
+          plot_download_ui(ns, "loadings")
+        ),
+        card_body(plotOutput(ns("loadings"), height = "520px"))
       )
     )
   )
@@ -62,8 +82,12 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
       s <- study()
       req(s)
       df <- pca()$scores
+      # Carried so a labelled point can be named. run_pca() leaves it out of
+      # the scores frame on purpose, so the frame stays purely principal
+      # components.
+      df$sample <- rownames(df)
       df$color <- if (isTruthy(input$color_by)) {
-        as.character(
+        collapse_levels(
           as.data.frame(SummarizedExperiment::colData(s$rse))[[input$color_by]]
         )
       } else {
@@ -72,31 +96,87 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
       df
     })
 
+    loadings <- reactive({
+      s <- study()
+      req(s)
+      pca_loadings(
+        pca(),
+        symbols = gene_symbols(s$rse),
+        pc = input$loading_pc %||% 1
+      )
+    })
+
     # An argument rather than baked in, so the PDF stays light.
     current_plot <- function(dark_mode = FALSE) {
       plot_pca_scatter(
         scores(),
         pca()$var_explained,
         color_label = if (isTruthy(input$color_by)) input$color_by else NULL,
-        dark = dark_mode
+        dark = dark_mode,
+        point_size = input$point_size %||% 2.5,
+        label = isTRUE(input$label_points),
+        font_size = input$font_size %||% 21
+      )
+    }
+
+    scree_plot <- function(dark_mode = FALSE) {
+      plot_pca_scree(
+        pca()$var_explained,
+        dark = dark_mode,
+        font_size = input$font_size %||% 21
+      )
+    }
+
+    loadings_plot <- function(dark_mode = FALSE) {
+      plot_pca_loadings(
+        loadings(),
+        pc = input$loading_pc %||% 1,
+        dark = dark_mode,
+        font_size = input$font_size %||% 21
       )
     }
 
     output$scatter <- renderPlot({
       validate(need(study(), "Load a study from the Browse view first."))
-      current_plot(dark())
+      safe_plot(current_plot(dark()), dark())
     })
 
     output$scree <- renderPlot({
       validate(need(study(), "Load a study from the Browse view first."))
-      plot_pca_scree(pca()$var_explained, dark = dark())
+      safe_plot(scree_plot(dark()), dark())
     })
 
-    output$pdf <- downloadHandler(
-      filename = function() paste0(req(study())$project, "_pca.pdf"),
-      content = function(file) {
-        ggsave(file, plot = current_plot(FALSE), width = 9, height = 6)
-      }
+    output$loadings <- renderPlot({
+      validate(need(study(), "Load a study from the Browse view first."))
+      safe_plot(loadings_plot(dark()), dark())
+    })
+
+    register_plot_downloads(
+      output,
+      "scatter",
+      filename = function() paste0(req(study())$project, "_pca"),
+      builder = current_plot
+    )
+    register_plot_downloads(
+      output,
+      "scree",
+      filename = function() paste0(req(study())$project, "_pca_scree"),
+      builder = scree_plot
+    )
+    register_plot_downloads(
+      output,
+      "loadings",
+      filename = function() {
+        paste0(
+          req(study())$project,
+          "_pc",
+          input$loading_pc %||% 1,
+          "_loadings"
+        )
+      },
+      builder = loadings_plot,
+      width = 8,
+      height = 7
     )
 
     reactive({

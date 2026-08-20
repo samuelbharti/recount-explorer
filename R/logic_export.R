@@ -29,7 +29,8 @@ expression_export_df <- function(study) {
 build_reproduction_script <- function(
   study,
   gene_state = NULL,
-  pca_state = NULL
+  pca_state = NULL,
+  quality_state = NULL
 ) {
   header <- c(
     sprintf(
@@ -88,6 +89,49 @@ build_reproduction_script <- function(
     ""
   )
 
+  quality_block <- NULL
+  if (!is.null(quality_state)) {
+    quality_block <- c(
+      "# Library composition: share of each sample's reads by gene biotype.",
+      "biotype <- as.character(rowData(rse)$gene_type)",
+      'totals <- rowsum(assay(rse, "counts"), group = biotype)',
+      "share <- sweep(totals, 2, colSums(totals), \"/\") * 100",
+      sprintf(
+        "top <- head(names(sort(rowMeans(share), decreasing = TRUE)), %d)",
+        quality_state$top_biotypes %||% 8
+      ),
+      "composition <- data.frame(",
+      "  sample = rep(colnames(share), each = length(top)),",
+      "  biotype = rep(top, times = ncol(share)),",
+      "  share = as.numeric(share[top, ])",
+      ")",
+      "ggplot(composition, aes(sample, share, fill = biotype)) +",
+      "  geom_col(width = 1) +",
+      '  labs(x = "Sample", y = "Share of reads (%)")',
+      "",
+      "# Quality metrics that recount3 computed during alignment.",
+      "qc_columns <- c(",
+      paste0(
+        "  ",
+        sprintf('"%s"', unname(QC_METRICS)),
+        c(rep(",", length(QC_METRICS) - 1L), "")
+      ),
+      ")",
+      "qc_columns <- qc_columns[qc_columns %in% colnames(colData(rse))]",
+      "metrics <- data.frame(",
+      "  sample = rep(colnames(rse), times = length(qc_columns)),",
+      "  metric = rep(qc_columns, each = ncol(rse)),",
+      "  value = unlist(lapply(qc_columns, function(x) colData(rse)[[x]]))",
+      ")",
+      "ggplot(metrics, aes(metric, value)) +",
+      "  geom_boxplot(outlier.shape = NA) +",
+      "  geom_jitter(width = 0.2, alpha = 0.6) +",
+      '  facet_wrap(~metric, scales = "free") +',
+      "  labs(x = NULL, y = NULL)",
+      ""
+    )
+  }
+
   pca_block <- NULL
   if (!is.null(pca_state)) {
     color_code <- if (nzchar(pca_state$color_by)) {
@@ -144,5 +188,8 @@ build_reproduction_script <- function(
     )
   }
 
-  paste(c(header, load_block, qc_block, pca_block, gene_block), collapse = "\n")
+  paste(
+    c(header, load_block, qc_block, quality_block, pca_block, gene_block),
+    collapse = "\n"
+  )
 }
