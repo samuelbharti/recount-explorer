@@ -5,6 +5,19 @@
  * Colours come from Bootstrap variables so dark mode works without a second
  * palette here. */
 
+/* Card headers ------------------------------------------------------------
+ *
+ * bslib's own dashboard styling resets every card() back to a transparent
+ * header (the .bslib-card class), which is why _brand.yml's card-cap-bg
+ * has no visible effect. Overriding the same variable here, after bslib's
+ * stylesheet, is what actually reaches the page. The primary-tinted subtle
+ * background is a live Bootstrap token, so it follows dark mode on its own.
+ */
+
+.bslib-card {
+  --bs-card-cap-bg: var(--bs-primary-bg-subtle);
+}
+
 /* Browse view ------------------------------------------------------------ */
 
 .browse-main {
@@ -68,6 +81,18 @@
 .study-chip-empty {
   color: var(--bs-secondary-color);
   border-style: dashed;
+}
+
+/* The navbar is pinned to a dark coffee background regardless of the page's
+ * own light or dark mode. A plain span does not pick that up on its own, so
+ * it needs the navbar's own text colour rather than the page's body colour. */
+.navbar .study-chip {
+  color: var(--bs-navbar-active-color);
+  border-color: rgba(var(--bs-emphasis-color-rgb), 0.3);
+}
+
+.navbar .study-chip-empty {
+  color: var(--bs-navbar-color);
 }
 
 /* Export ----------------------------------------------------------------- */
