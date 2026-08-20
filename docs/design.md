@@ -260,6 +260,36 @@ somebody is only reading about can never take a slot from a study they asked
 for. A load stops any warm-up first, so the two never write BiocFileCache at
 the same time.
 
+### Reporting progress
+
+A load takes ten seconds or more, and for most of that the old interface showed
+a spinner. A spinner says something is happening. It does not say what, or how
+much is left.
+
+Loading runs on a mirai daemon, which is a separate process with no way to push
+a value back before it finishes. Returning intermediate values means
+serializing the whole RangedSummarizedExperiment twice. So the daemon writes
+its current step to a small file and the main process reads it with
+`invalidateLater(400)` while the task is running. The write is a temporary file
+and a rename, so a reader never catches a half-written line.
+
+Splitting the work into named steps is what `prefetch_study_files()` makes
+possible. The first three steps are the files `create_rse()` needs, fetched
+before it rather than inside it. The last three are the work that happens once
+those files are on disk.
+
+```
+Loading ERP023321   1 of 6   Fetching study metadata
+Loading ERP023321   2 of 6   Fetching the gene annotation
+Loading ERP023321   3 of 6   Downloading the counts, 15 MB
+Loading ERP023321   4 of 6   Building the study object
+Loading ERP023321   5 of 6   Scaling the counts
+Loading ERP023321   6 of 6   Computing log2 CPM
+```
+
+Step three names the size, because size is what the wait is made of. The
+progress card sits in the right pane and clears when the load settles.
+
 ### Making the size pass affordable
 
 Recording 19,000 sizes looked like a four hour job. Two measurements changed

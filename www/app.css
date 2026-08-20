@@ -87,3 +87,17 @@
   font-size: 0.8rem;
   color: var(--bs-secondary-color);
 }
+
+/* Load progress ---------------------------------------------------------- */
+
+.load-progress {
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-tertiary-bg);
+}
+
+.load-progress .progress {
+  height: 0.4rem;
+}
