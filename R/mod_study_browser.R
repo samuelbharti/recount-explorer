@@ -81,6 +81,7 @@ study_browser_ui <- function(id) {
         width = 360,
         open = "closed",
         id = ns("details_pane"),
+        uiOutput(ns("load_progress")),
         uiOutput(ns("details"))
       ),
       div(
@@ -321,6 +322,7 @@ study_browser_server <- function(id) {
     study <- reactiveVal(NULL)
     pending <- reactiveVal(NULL)
     prefetch <- reactiveVal(NULL)
+    progress_file <- reactiveVal(NULL)
 
     # Start warming the selected study while the user reads its abstract.
     # About 70 percent of a cold load is the download, and a reader usually
@@ -356,17 +358,23 @@ study_browser_server <- function(id) {
     # Download and log2 CPM both run on the daemon. mirai evaluates in a clean
     # process, so the two logic functions travel with the call and already
     # namespace-qualify their recount3 and SummarizedExperiment calls.
-    load_task <- ExtendedTask$new(function(proj_info) {
+    # Everything the daemon needs travels through `...` rather than `.args`.
+    # mirai puts `...` in the daemon's global environment, which is the
+    # enclosure these functions resolve against; `.args` binds only in the
+    # evaluation frame, so the nested calls would not find each other.
+    load_task <- ExtendedTask$new(function(proj_info, progress_file) {
       mirai::mirai(
-        {
-          rse <- load_study(proj_info)
-          list(rse = rse, log_expr = log_cpm(rse))
-        },
-        .args = list(
-          proj_info = proj_info,
-          load_study = load_study,
-          log_cpm = log_cpm
-        )
+        load_study_staged(proj_info, progress_file),
+        load_study_staged = load_study_staged,
+        prefetch_study_files = prefetch_study_files,
+        recount3_counts_url = recount3_counts_url,
+        recount3_annotation_code = recount3_annotation_code,
+        counts_label = counts_label,
+        format_size_mb = format_size_mb,
+        write_load_progress = write_load_progress,
+        log_cpm = log_cpm,
+        LOAD_STAGES = LOAD_STAGES,
+        .args = list(proj_info = proj_info, progress_file = progress_file)
       )
     }) |>
       bind_task_button("load")
@@ -399,8 +407,10 @@ study_browser_server <- function(id) {
         try(mirai::stop_mirai(running), silent = TRUE)
         prefetch(NULL)
       }
+      pf <- tempfile(pattern = "recount-load-", fileext = ".progress")
+      progress_file(pf)
       pending(info)
-      load_task$invoke(info)
+      load_task$invoke(info, pf)
       showNotification(
         paste(
           "Loading",
@@ -412,6 +422,47 @@ study_browser_server <- function(id) {
       )
     })
 
+    # Poll only while a load is running. The daemon cannot push a value back
+    # before it finishes, so it writes its step to a file and this reads it.
+    load_progress <- reactive({
+      if (!identical(load_task$status(), "running")) {
+        return(NULL)
+      }
+      invalidateLater(400, session)
+      read_load_progress(progress_file())
+    })
+
+    output$load_progress <- renderUI({
+      if (!identical(load_task$status(), "running")) {
+        return(NULL)
+      }
+      info <- pending()
+      p <- load_progress()
+      step <- p$step %||% 0L
+      total <- p$total %||% LOAD_STAGES
+      pct <- max(4, round(100 * step / total))
+      div(
+        class = "load-progress",
+        div(
+          class = "d-flex justify-content-between small",
+          tags$strong(paste("Loading", info$project)),
+          span(class = "text-muted", sprintf("%d of %d", step, total))
+        ),
+        div(
+          class = "progress mt-1",
+          role = "progressbar",
+          div(
+            class = "progress-bar progress-bar-striped progress-bar-animated",
+            style = paste0("width:", pct, "%")
+          )
+        ),
+        div(
+          class = "small text-muted mt-1",
+          p$label %||% "Starting"
+        )
+      )
+    })
+
     observeEvent(load_task$status(), {
       status <- load_task$status()
       if (!status %in% c("success", "error")) {
@@ -419,6 +470,11 @@ study_browser_server <- function(id) {
       }
       info <- pending()
       pending(NULL)
+      pf <- progress_file()
+      if (!is.null(pf)) {
+        unlink(c(pf, paste0(pf, ".tmp")))
+        progress_file(NULL)
+      }
       if (status == "error") {
         msg <- tryCatch(
           {
