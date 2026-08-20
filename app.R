@@ -78,6 +78,10 @@ ui <- page_navbar(
   id = "nav",
   theme = app_theme,
   fillable = "Browse",
+  # A fixed coffee-dark bar, independent of the page's own light or dark
+  # mode. Without this the navbar just took the body background, which read
+  # as one flat block with the rest of the page.
+  navbar_options = navbar_options(bg = "var(--brand-roast)", theme = "dark"),
   header = tagList(
     # Spinners on every recalculating output and a pulse on the page, without
     # wiring a single one by hand.
@@ -107,7 +111,9 @@ ui <- page_navbar(
     tags$button(
       id = "take_tour",
       type = "button",
-      class = "btn btn-sm btn-outline-secondary",
+      # outline-light, not outline-secondary: secondary stays a fixed brown
+      # that barely shows up against the navbar's own coffee background.
+      class = "btn btn-sm btn-outline-light",
       bsicons::bs_icon("compass"),
       "Take a tour"
     )

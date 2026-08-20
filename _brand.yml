@@ -66,6 +66,10 @@ defaults:
   bootstrap:
     defaults:
       border-radius: "0.5rem"
+      # bslib's own dashboard styling resets this back to empty for every
+      # card() (the .bslib-card class), so the tint that matters is the
+      # override in www/app.css, not this variable. Left as transparent so
+      # `bs_get_variables()` still reports something sane.
       card-cap-bg: "transparent"
       # Bootstrap takes link colours from primary. Caramel on cream is a
       # little light for a run of body text, so links use the darker coffee.
