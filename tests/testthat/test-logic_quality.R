@@ -103,7 +103,7 @@ test_that("sex_signal returns NULL when a chromosome column is missing", {
   expect_null(sex_signal(rse))
 })
 
-test_that("expression_quantiles gives a rising five-number summary per sample", {
+test_that("expression_quantiles gives a rising summary per sample", {
   study <- fixture_study()
 
   df <- expression_quantiles(study$log_expr)

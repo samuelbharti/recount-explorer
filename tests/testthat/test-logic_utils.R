@@ -1,4 +1,4 @@
-test_that("register_plot_downloads wires a PDF and a PNG handler under one prefix", {
+test_that("register_plot_downloads wires a PDF and PNG handler per prefix", {
   # shiny's own output object has reference semantics (it behaves like an
   # environment), so the fake here has to as well: a plain list would not
   # see the assignment made inside the function.
@@ -17,7 +17,7 @@ test_that("register_plot_downloads wires a PDF and a PNG handler under one prefi
   expect_s3_class(output$qc_png, "shiny.render.function")
 })
 
-test_that("plot_download_ui names its buttons after the id prefix it is given", {
+test_that("plot_download_ui names its buttons after its id prefix", {
   ui <- plot_download_ui(shiny::NS("mod"), "correlation")
   html <- as.character(ui)
 

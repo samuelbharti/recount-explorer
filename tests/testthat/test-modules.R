@@ -255,7 +255,7 @@ test_that("one font size control governs both plots on the overview page", {
   )
 })
 
-test_that("one font size control governs all four plots in the quality module", {
+test_that("one font size control governs all four plots in the quality tab", {
   study <- module_study()
 
   shiny::testServer(
@@ -289,7 +289,7 @@ test_that("one font size control governs all four plots in the quality module", 
   )
 })
 
-test_that("one font size control governs the scatter, scree and loadings in PCA", {
+test_that("one font size control governs the scatter, scree and loadings", {
   study <- module_study()
 
   shiny::testServer(

@@ -106,7 +106,7 @@ test_that("recount3_installed answers without loading recount3", {
   expect_equal(tail(out, 1), "FALSE")
 })
 
-test_that("metadata_columns keeps the default short and always leads with sample", {
+test_that("metadata_columns keeps the default short, leading with sample", {
   rse <- fixture_rse()
 
   cols <- metadata_columns(rse)
@@ -119,7 +119,7 @@ test_that("metadata_columns keeps the default short and always leads with sample
   expect_false("batch" %in% cols$all)
 })
 
-test_that("metadata_columns prefers the quality metrics over whatever comes first", {
+test_that("metadata_columns prefers quality metrics over other columns", {
   rse <- fixture_rse()
 
   cols <- metadata_columns(rse)
