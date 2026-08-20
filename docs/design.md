@@ -91,26 +91,17 @@ The refresh is not built yet. It will write the new snapshot to
 `tools::R_user_dir()` rather than into the bundle. A deployed app must never
 write into its own installation directory.
 
-### Why the table binds the whole catalog
+### Why organism and source are stored as character
 
-The browser hands the entire catalog to `DT::datatable()` and lets DataTables
-do the filtering. That looks wasteful and is not.
+`create_rse()` reaches `match.arg()` through `annotation_options()`, and
+`match.arg()` rejects a factor. Storing either column as a factor breaks study
+loading outright, with an error that points at recount3 rather than at the
+catalog.
 
-`input$catalog_rows_selected` is an index into the frame given to
-`datatable()`, before sorting and before search. So the index survives any
-amount of sorting and filtering, as long as that frame does not change. The
-earlier code rebuilt a filtered frame on every control change. That let the
-selection input lag one flush behind the data and point at the wrong study.
-
-The abstract column stays in the data and is hidden through `columnDefs`.
-DataTables treats visible and searchable as independent, so a search still
-matches abstract text. Removing the column instead breaks the table outright.
-The server-side filter compares the client column count against `ncol(data)`
-and returns nothing when the two disagree.
-
-`organism` and `file_source` are rendered as factors so DataTables draws a
-select box rather than a text box. They are stored as character, because
-`create_rse()` rejects a factor, and selection resolves against storage.
+`catalog_proj_info()` in `R/logic_catalog.R` is the guard. It rebuilds the
+selected row as plain character columns and restores the `project_type` that
+the stored schema drops. Every path into `load_study()` goes through it, and a
+test pins the behaviour.
 
 ## Flow
 
@@ -131,8 +122,9 @@ flowchart LR
 
 - **Browse studies**: The whole catalog, from the snapshot, with no network
   call. One search box covers the accession, the title, and the abstract text.
-  Each column has its own filter. When you select a row, the app shows the
-  abstract and links out to the source archive.
+  Filters for organism, data source and study size sit in the left pane. When
+  you select a row, the right pane shows the abstract and links out to the
+  source archive.
 - **Study overview**: The headline numbers, a table of the sample metadata, and
   a quality plot of library size against detected genes.
 - **Gene explorer**: Server-side gene search. The app draws a boxplot or a
@@ -148,34 +140,44 @@ flowchart LR
 
 ## Architecture
 
-The interface is React. The R process holds reactive logic only. shinyreact
-serves a built bundle out of `www/`. It gives the client hooks that read Shiny
-inputs and outputs. There is no Shiny UI object anywhere in this app.
+The interface is bslib, which is Bootstrap 5 with an R API. Every part of it is
+R code, so a contributor can change a filter or a layout and reload, with no
+JavaScript toolchain and no build step. That was a deliberate choice: this is a
+tool meant for other people to use and contribute to, and most of them write R.
 
 Three layers, and the separation does real work. It is not decoration.
 
 ```mermaid
 flowchart TD
-    client["src/ React client<br/>owns every pixel"]
-    client -->|"inputs"| app["app.R: wiring"]
-    app -->|"reactive_output JSON"| client
-    app --> browser["server_catalog.R<br/>search, selection, load"]
-    app --> views["server_views.R<br/>overview, gene, PCA, export"]
-    browser --> logic0["logic_catalog.R<br/>snapshot, search"]
+    app["app.R: page layout and wiring"]
+    app --> browser["mod_study_browser<br/>returns the study reactive"]
+    app --> overview["mod_study_overview"]
+    app --> gene["mod_gene_explorer"]
+    app --> pca["mod_pca_explorer"]
+    app --> export["mod_export"]
+    browser --> logic0["logic_catalog.R<br/>snapshot and search"]
     browser --> logic1["logic_recount.R<br/>load and log2 CPM"]
-    views --> logic2["logic_analysis.R<br/>QC, PCA, expression"]
-    views --> logic3["logic_export.R<br/>script and CSV frames"]
-    views --> logic4["logic_plots.R"]
+    overview --> logic2["logic_analysis.R<br/>QC, PCA, expression"]
+    gene --> logic2
+    pca --> logic2
+    export --> logic3["logic_export.R<br/>script and CSV frames"]
+    gene --> logic4["logic_plots.R"]
+    pca --> logic4
+    overview --> logic4
 ```
 
 `R/logic_*.R` is Shiny-free. Plain arguments go in and plain data comes out.
-There is no `input$`, no `req()`, and no reactivity. This is what makes the
-test suite cheap. The tests run against a 3 KB fixture with no app and no
-network.
+There is no `input$`, no `req()`, and no reactivity. This is what makes the test
+suite cheap. The tests run against a 3 KB fixture with no app and no network.
 
-`R/server_*.R` holds the reactive logic and builds no interface. The one
-contract between its two halves is the `study` reactive that the catalog half
-returns:
+It is also what made the interface replaceable. This app had a React front end
+for a while, built on shinyreact. Swapping it for bslib touched `app.R` and the
+modules and left all 820 lines of the logic layer and all of its tests
+untouched. Keep that boundary and the next interface is equally cheap.
+
+`R/mod_*.R` holds one module for each view. A module never reaches into another
+module. The one contract between them is the `study` reactive that the browser
+module returns:
 
 ```r
 list(project, organism, source, rse, log_expr)   # NULL until a study loads
@@ -186,36 +188,20 @@ list(project, organism, source, rse, log_expr)   # NULL until a study loads
 The views and the PDF downloads share `logic_plots.R`. This is what makes a
 downloaded figure match the figure on the screen.
 
-### Why the plots stay on the server
+### The browse view
 
-A React client can draw the charts itself. For a histogram that is the better
-answer. These are not histograms. A PCA scatter with a colour legend
-and a boxplot with jittered points already exist in `logic_plots.R`, and the
-same builders produce the downloaded PDF. Redrawing them in the browser means
-writing each chart twice and then keeping the two copies identical.
+Three panes: filters on the left, results in the middle, the selected study on
+the right. The right pane is a bslib sidebar rather than a card under the
+table, so reading an abstract never pushes the results off the screen.
 
-So ggplot2 renders, `renderPlot` ships the image, and the client mounts it. The
-client asks for a plot by giving a div the `shiny-plot-output` class, which is
-how Shiny finds it. `shinyreact::ShinyOutput` renders that element and calls
-`Shiny.bindAll` on its parent. The same trick carries the download links, which
-are anchors with the `shiny-download-link` class.
+Filtering happens in R through `catalog_search()`, not in DataTables. That
+keeps one source of truth for what the user asked for, and it lets the search
+box cover abstract text that the table never shows.
 
-### Two shapes that bite
-
-Both of these produce a blank page with no server error, so they are worth
-naming.
-
-**React has to come from `window.shinyreact`.** The hooks live in the React
-instance the shinyreact runtime owns. Importing React from `node_modules`
-instead loads a second copy, the components read one dispatcher while the hooks
-write the other, and every `useState` throws. The build externalizes React. The JSX
-also runs in classic mode. The automatic JSX runtime imports
-`react/jsx-runtime` and pulls that second copy back in.
-
-**Shiny serializes a data frame column wise.** A client expecting an array of
-rows gets one object of parallel arrays, and `.map()` throws. Anything the
-client iterates goes through `df_to_rows()` first. For the same reason a
-length-1 vector is wrapped in `I()`, since Shiny unboxes it into a bare scalar.
+The cost of that choice is one trap. `input$catalog_rows_selected` indexes the
+frame that was last rendered, so when the filters change the index can outlive
+the data it referred to and resolve to a different study. The browser module
+clears the selection on every filter change, which closes that window.
 
 ## Startup cost
 

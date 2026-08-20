@@ -46,25 +46,3 @@ jobs:
         shell: Rscript {0}
         env:
           LINTR_ERROR_ON_LINT: true
-
-      # The front end checks live in this job rather than their own. GitHub
-      # bills a one minute minimum for each job, and these steps add about
-      # forty seconds to a job that is already running.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install front end dependencies
-        run: npm ci
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      # www/app.js and www/style.css are committed so a clone runs with
-      # shiny::runApp() and nothing else. Rebuilding here catches the case
-      # where someone edits src/ and forgets to build.
-      - name: Rebuild and check the bundle is current
-        run: |
-          npm run build
-          git diff --exit-code -- www/             || (echo "::error::www/ is stale. Run npm run build and commit."; exit 1)

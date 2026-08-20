@@ -22,17 +22,8 @@ in several hundred packages that nobody needs. Install the two tools once:
 install.packages(c("testthat", "lintr"))
 ```
 
-To change the interface you also need Node 20 or newer:
-
-```sh
-npm install
-npm run build
-```
-
-`www/app.js` and `www/style.css` are committed, so a clone runs with
-`shiny::runApp()` and no Node at all. If you change anything under `src/`,
-rebuild and commit the result. CI rebuilds and fails when the committed bundle
-does not match the source.
+There is no build step and no JavaScript toolchain. The interface is bslib, so
+changing it means editing R and reloading the app.
 
 Two command line tools handle the formatting and the git hooks:
 
