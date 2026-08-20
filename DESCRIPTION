@@ -16,6 +16,7 @@ BugReports: https://github.com/samuelbharti/recount-explorer/issues
 Depends:
     R (>= 4.2)
 Imports:
+    brand.yml,
     bsicons,
     bslib (>= 0.9.1),
     curl,
@@ -29,7 +30,8 @@ Imports:
     stats,
     SummarizedExperiment,
     tools,
-    utils
+    utils,
+    yaml
 Suggests:
     lintr,
     testthat (>= 3.0.0)

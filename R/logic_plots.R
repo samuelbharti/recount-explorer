@@ -2,30 +2,15 @@
 # handlers so the exported figure is exactly what is on screen.
 #
 # Every builder takes `dark`. ggplot2 draws on a white canvas whatever the page
-# looks like, so without this the figures glare in dark mode. The colours are
-# set here rather than left to thematic, because an explicit theme is
-# deterministic, testable, and one dependency lighter.
+# looks like, so without this the figures glare in dark mode. The colours come
+# from _brand.yml through R/logic_brand.R, the same file bslib reads for the
+# Bootstrap theme, so the figures and the interface cannot drift apart.
 #
 # `dark` defaults to FALSE, which is what the PDF downloads want: a figure
 # going into a document or onto paper should be light whatever the screen was.
 
 plot_palette <- function(dark = FALSE) {
-  if (dark) {
-    return(list(
-      bg = "#1b1e21",
-      fg = "#e6e8ea",
-      muted = "#9aa0a6",
-      grid = "#33383d",
-      point = "#7aa7f0"
-    ))
-  }
-  list(
-    bg = "#ffffff",
-    fg = "#16181d",
-    muted = "#62666e",
-    grid = "#e6e8ec",
-    point = "#2f6feb"
-  )
+  brand_plot_palette(dark)
 }
 
 theme_recount <- function(dark = FALSE, base_size = 14) {
@@ -92,6 +77,7 @@ plot_gene_expression <- function(
     ) +
     ggplot2::labs(x = group_label, y = "log2 CPM", title = gene_label) +
     ggplot2::guides(fill = "none") +
+    brand_fill_scale() +
     theme_recount(dark) +
     ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)
@@ -111,11 +97,13 @@ plot_pca_scatter <- function(
     ggplot2::labs(x = pct(1), y = pct(2), color = color_label) +
     theme_recount(dark)
   if (is.null(color_label)) {
-    gg <- gg +
-      ggplot2::guides(color = "none") +
-      ggplot2::scale_color_manual(values = col$point)
+    return(
+      gg +
+        ggplot2::guides(color = "none") +
+        ggplot2::scale_color_manual(values = col$point)
+    )
   }
-  gg
+  gg + brand_colour_scale()
 }
 
 plot_pca_scree <- function(var_explained, dark = FALSE) {
@@ -128,4 +116,20 @@ plot_pca_scree <- function(var_explained, dark = FALSE) {
     ggplot2::geom_col(fill = col$point) +
     ggplot2::labs(x = "PC", y = "% variance") +
     theme_recount(dark)
+}
+
+# Warm categorical scales, so a grouped plot does not fall back to ggplot2's
+# default hues and undo the brand.
+brand_fill_scale <- function() {
+  ggplot2::scale_fill_manual(
+    values = brand_qualitative(),
+    na.value = "#888888"
+  )
+}
+
+brand_colour_scale <- function() {
+  ggplot2::scale_colour_manual(
+    values = brand_qualitative(),
+    na.value = "#888888"
+  )
 }
