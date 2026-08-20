@@ -10,16 +10,16 @@ repos:
       # renv/ and renv.lock are generated and owned by renv. Rewriting their
       # whitespace just guarantees a diff the next time renv regenerates them.
       - id: trailing-whitespace
-        exclude: '(\.(rds|RData|rda)$|^renv/|^renv\.lock$|^www/(app\.js|style\.css)$|^package-lock\.json$)'
+        exclude: '(\.(rds|RData|rda)$|^renv/|^renv\.lock$)'
       - id: end-of-file-fixer
-        exclude: '(\.(rds|RData|rda)$|^renv/|^renv\.lock$|^www/(app\.js|style\.css)$|^package-lock\.json$)'
+        exclude: '(\.(rds|RData|rda)$|^renv/|^renv\.lock$)'
       - id: check-merge-conflict
       - id: check-yaml
       - id: check-toml
       - id: check-case-conflict
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: '(^renv/|^renv\.lock$|^www/(app\.js|style\.css)$)'
+        exclude: '(^renv/|^renv\.lock$)'
       - id: detect-private-key
       # The catalog snapshot is about 7 MB. A file larger than 10 MB is a
       # mistake. Catch it here, not in review.
