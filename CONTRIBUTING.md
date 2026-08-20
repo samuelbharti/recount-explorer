@@ -51,6 +51,26 @@ Start the pull request title with `feat:`, `fix:`, `docs:`, `chore:`, or
 `refactor:`. Keep each pull request to one subject. Small pull requests get a
 review faster than large ones.
 
+## Versioning
+
+`DESCRIPTION` carries the version as three numbers: `MAJOR.MINOR.PATCH`, for
+example `0.1.0`. Bump it on the pull request from `dev` to `main`, not on
+every feature branch:
+
+- **PATCH** for a bug fix that changes no behaviour a user asked for.
+- **MINOR** for a new view, plot, or option.
+- **MAJOR** once the app is stable enough that a breaking change is worth
+  calling out. Below `1.0.0`, treat this the same as MINOR.
+
+A merge to `main` gets a matching git tag, `v0.1.0` for `DESCRIPTION`'s
+`0.1.0`. Tag after the merge, from `main`:
+
+```sh
+git checkout main && git pull
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
 ## Before you push
 
 ```sh
