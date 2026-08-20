@@ -35,7 +35,7 @@ gene_explorer_ui <- function(id) {
   )
 }
 
-gene_explorer_server <- function(id, study) {
+gene_explorer_server <- function(id, study, dark = reactive(FALSE)) {
   moduleServer(id, function(input, output, session) {
     observeEvent(study(), {
       s <- study()
@@ -61,21 +61,24 @@ gene_explorer_server <- function(id, study) {
       if (length(label)) label[[1L]] else input$gene
     })
 
-    current_plot <- reactive({
+    # `dark` is an argument rather than baked in, so the PDF handler can ask
+    # for the light figure while the screen shows the dark one.
+    current_plot <- function(dark_mode = FALSE) {
       s <- study()
       req(s, input$gene)
       plot_gene_expression(
         gene_expression_df(s, input$gene, input$group_by),
         geom = input$geom %||% "box",
         gene_label = gene_label(),
-        group_label = if (isTruthy(input$group_by)) input$group_by else NULL
+        group_label = if (isTruthy(input$group_by)) input$group_by else NULL,
+        dark = dark_mode
       )
-    })
+    }
 
     output$plot <- renderPlot({
       validate(need(study(), "Load a study from the Browse view first."))
       validate(need(input$gene, "Search for a gene in the sidebar."))
-      current_plot()
+      current_plot(dark())
     })
 
     output$pdf <- downloadHandler(
@@ -83,7 +86,7 @@ gene_explorer_server <- function(id, study) {
         paste0(req(study())$project, "_", req(input$gene), ".pdf")
       },
       content = function(file) {
-        ggsave(file, plot = current_plot(), width = 9, height = 6)
+        ggsave(file, plot = current_plot(FALSE), width = 9, height = 6)
       }
     )
 

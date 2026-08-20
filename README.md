@@ -26,9 +26,14 @@ recount3 API and draws the plots. You write no code.
 - **PCA**: Principal component analysis of the samples. The app uses the genes
   with the highest variance. You can color the points by metadata.
 - **Export**: Download the RangedSummarizedExperiment (`.rds`), the log2 CPM
-  matrix (`.csv.gz`), and the sample metadata (`.csv`). The app also writes an R
-  script that repeats the current session. The gene view and the PCA view
-  download the plot on the screen as a PDF.
+  matrix (`.csv.gz`), and the sample metadata (`.csv`). The app also writes the
+  session as an R script, a Quarto notebook, or an R Markdown notebook. The
+  gene view and the PCA view download their plot as a PDF.
+- **About**: What the app is, where the data comes from, how to cite it.
+
+The interface follows your system light or dark setting, and there is a toggle
+in the navigation bar. The plots follow it too. A downloaded PDF stays light. A
+figure going into a document belongs on a white background.
 
 ## Run it
 

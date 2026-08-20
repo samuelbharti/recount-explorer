@@ -42,7 +42,7 @@ pca_explorer_ui <- function(id) {
   )
 }
 
-pca_explorer_server <- function(id, study) {
+pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
   moduleServer(id, function(input, output, session) {
     observeEvent(study(), {
       updateSelectInput(
@@ -72,28 +72,30 @@ pca_explorer_server <- function(id, study) {
       df
     })
 
-    current_plot <- reactive({
+    # An argument rather than baked in, so the PDF stays light.
+    current_plot <- function(dark_mode = FALSE) {
       plot_pca_scatter(
         scores(),
         pca()$var_explained,
-        color_label = if (isTruthy(input$color_by)) input$color_by else NULL
+        color_label = if (isTruthy(input$color_by)) input$color_by else NULL,
+        dark = dark_mode
       )
-    })
+    }
 
     output$scatter <- renderPlot({
       validate(need(study(), "Load a study from the Browse view first."))
-      current_plot()
+      current_plot(dark())
     })
 
     output$scree <- renderPlot({
       validate(need(study(), "Load a study from the Browse view first."))
-      plot_pca_scree(pca()$var_explained)
+      plot_pca_scree(pca()$var_explained, dark = dark())
     })
 
     output$pdf <- downloadHandler(
       filename = function() paste0(req(study())$project, "_pca.pdf"),
       content = function(file) {
-        ggsave(file, plot = current_plot(), width = 9, height = 6)
+        ggsave(file, plot = current_plot(FALSE), width = 9, height = 6)
       }
     )
 
