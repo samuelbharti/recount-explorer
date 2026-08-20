@@ -17,7 +17,8 @@ recount3 API and draws the plots. You write no code.
 - **Browse studies**: All 18,998 studies, with no waiting and no network call.
   One search box covers the accession, the title, and the abstract text.
   Filters sit on the left and the study you select opens on the right. The app
-  loads a study on a background process, so it stays responsive.
+  loads a study on a background process, so it stays responsive, and reports
+  each step of the load rather than showing a spinner.
 - **Study overview**: The headline numbers for the study, a table of the sample
   metadata, and a quality plot of library size against detected genes.
 - **Gene explorer**: Search for one gene. The app plots the expression of that

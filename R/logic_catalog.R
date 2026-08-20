@@ -281,6 +281,9 @@ catalog_proj_info <- function(row) {
     project_home = as.character(row$project_home),
     project_type = "data_sources",
     n_samples = as.integer(row$n_samples),
+    # Carried so the progress label can name the size. create_rse() reads the
+    # columns it wants by name, so an extra one is ignored.
+    download_mb = as.numeric(row$download_mb %||% NA_real_),
     stringsAsFactors = FALSE
   )
 }
@@ -584,6 +587,16 @@ study_download_mb <- function(
 # instead of one opaque call.
 #
 # `on_stage(step, total, label)` is called before each step when supplied.
+# "Downloading the counts, 33 MB" reads better than "Downloading the counts",
+# because size is what the wait is made of.
+counts_label <- function(proj_info) {
+  mb <- suppressWarnings(as.numeric(proj_info$download_mb))
+  if (length(mb) == 1L && !is.na(mb) && mb > 0) {
+    return(paste0("Downloading the counts, ", format_size_mb(mb)))
+  }
+  "Downloading the counts"
+}
+
 prefetch_study_files <- function(proj_info, on_stage = NULL) {
   stopifnot(is.data.frame(proj_info), nrow(proj_info) == 1L)
   organism <- as.character(proj_info$organism)
@@ -613,7 +626,7 @@ prefetch_study_files <- function(proj_info, on_stage = NULL) {
     verbose = FALSE
   )
 
-  step(3L, "Downloading the counts")
+  step(3L, counts_label(proj_info))
   recount3::file_retrieve(
     url = recount3_counts_url(
       proj_info$project,
