@@ -56,7 +56,7 @@ format_reads <- function(n) {
 # A separate helper rather than folded only into plot_controls_ui(), because
 # some views (the gene explorer) have no points to size or label but still
 # have axis text that can be too small to read.
-font_size_ui <- function(ns, default = 14) {
+font_size_ui <- function(ns, default = 21) {
   shiny::sliderInput(
     ns("font_size"),
     "Font size",
@@ -79,7 +79,7 @@ plot_controls_ui <- function(
   ns,
   size_default = 2.2,
   label_default = FALSE,
-  font_default = 14,
+  font_default = 21,
   include_font = TRUE
 ) {
   shiny::tagList(
@@ -101,5 +101,66 @@ plot_controls_ui <- function(
     shiny::helpText(
       "Above 30 points only the samples furthest from the middle are named."
     )
+  )
+}
+
+# The pair of download buttons every plot-bearing card offers.
+#
+# Right-aligned in a card_header next to its title: `ms-auto` on the first
+# button pushes the whole pair to the far edge, and the second follows it
+# without needing the same margin.
+plot_download_ui <- function(ns, id_prefix) {
+  shiny::tagList(
+    shiny::downloadButton(
+      ns(paste0(id_prefix, "_pdf")),
+      "PDF",
+      class = "btn-sm ms-auto"
+    ),
+    shiny::downloadButton(
+      ns(paste0(id_prefix, "_png")),
+      "PNG",
+      class = "btn-sm"
+    )
+  )
+}
+
+# The PDF and PNG handlers behind plot_download_ui(), registered together so
+# the pair is never written out by hand at each call site.
+#
+# `builder` is called with `dark_mode = FALSE` for both formats, the same way
+# the screen already asks the on-screen builder for a light figure whatever
+# mode the page is showing: a downloaded figure going into a document or a
+# slide should not carry the reader's dark mode along with it.
+register_plot_downloads <- function(
+  output,
+  id_prefix,
+  filename,
+  builder,
+  width = 9,
+  height = 6,
+  dpi = 200
+) {
+  output[[paste0(id_prefix, "_pdf")]] <- shiny::downloadHandler(
+    filename = function() paste0(filename(), ".pdf"),
+    content = function(file) {
+      ggplot2::ggsave(
+        file,
+        plot = builder(FALSE),
+        width = width,
+        height = height
+      )
+    }
+  )
+  output[[paste0(id_prefix, "_png")]] <- shiny::downloadHandler(
+    filename = function() paste0(filename(), ".png"),
+    content = function(file) {
+      ggplot2::ggsave(
+        file,
+        plot = builder(FALSE),
+        width = width,
+        height = height,
+        dpi = dpi
+      )
+    }
   )
 }

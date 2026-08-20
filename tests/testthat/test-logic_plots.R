@@ -221,10 +221,10 @@ test_that("font size reaches every builder's theme", {
   }
 })
 
-test_that("font size defaults to 14, matching the size before the control existed", {
+test_that("font size defaults to 21, the size found legible on a plot-heavy page", {
   qc <- data.frame(library_size = 1e6, detected_genes = 100)
 
-  expect_equal(plot_qc(qc)$theme$text$size, 14)
+  expect_equal(plot_qc(qc)$theme$text$size, 21)
 })
 
 test_that("font size scales the parts theme_recount() cannot reach", {
@@ -260,4 +260,62 @@ test_that("safe_plot forwards font size to the error message it draws", {
   built <- safe_plot(stop("boom"), font_size = 22)
 
   expect_equal(built$layers[[1]]$aes_params$size, 22 / 14 * 4.5)
+})
+
+test_that("facet strip text follows the theme instead of theme_minimal()'s fixed grey", {
+  # theme_minimal() sets strip.text to a fixed dark colour rather than
+  # inheriting `text`, so without an explicit override the quality metrics
+  # panel's facet titles stayed near-black and disappeared on a dark page.
+  qc <- data.frame(
+    metric = factor(c("a", "a", "b", "b")),
+    value = c(1, 2, 3, 4),
+    group = factor("all samples"),
+    outlier = c(FALSE, FALSE, FALSE, FALSE)
+  )
+
+  for (dark in c(FALSE, TRUE)) {
+    built <- plot_qc_panel(qc, dark = dark)
+    expect_equal(
+      built$theme$strip.text$colour,
+      plot_palette(dark)$fg,
+      info = dark
+    )
+    expect_equal(
+      built$theme$strip.background$fill,
+      plot_palette(dark)$bg,
+      info = dark
+    )
+  }
+})
+
+test_that("the correlation heatmap fills its full background in both modes", {
+  # coord_fixed() left the letterboxed margin around a square panel
+  # undrawn, so Shiny's own white PNG default showed through there in every
+  # mode. Rendering to a PNG and sampling the far corners is the only way to
+  # catch this: the theme object alone looks correct even when it fails.
+  skip_if_not_installed("png")
+  m <- matrix(
+    c(1, 0.2, 0.5, 0.2, 1, 0.3, 0.5, 0.3, 1),
+    nrow = 3,
+    dimnames = list(c("s1", "s2", "s3"), c("s1", "s2", "s3"))
+  )
+  df <- correlation_long(m)
+
+  for (dark in c(FALSE, TRUE)) {
+    f <- withr::local_tempfile(fileext = ".png")
+    # Wide and short, like the real card, so a fixed-aspect panel would
+    # letterbox on the sides the way it did in the app.
+    ggplot2::ggsave(
+      f,
+      plot_sample_correlation(df, dark = dark),
+      width = 10,
+      height = 4,
+      dpi = 72
+    )
+    img <- png::readPNG(f)
+    h <- dim(img)[1]
+    edge <- img[round(h / 2), 3, 1:3]
+    expected <- as.numeric(grDevices::col2rgb(plot_palette(dark)$bg)) / 255
+    expect_equal(edge, expected, tolerance = 0.02, info = dark)
+  }
 })

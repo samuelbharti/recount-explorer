@@ -34,25 +34,27 @@ pca_explorer_ui <- function(id) {
         max = 10,
         step = 1
       ),
-      plot_controls_ui(ns, size_default = 2.5),
-      downloadButton(ns("pdf"), "Download PDF", class = "btn-sm")
+      plot_controls_ui(ns, size_default = 2.5)
     ),
     layout_columns(
       col_widths = c(8, 4, 12),
       card(
-        card_header("PC1 against PC2"),
+        full_screen = TRUE,
+        card_header("PC1 against PC2", plot_download_ui(ns, "scatter")),
         card_body(plotOutput(ns("scatter"), height = "500px"))
       ),
       card(
-        card_header("Variance explained"),
+        full_screen = TRUE,
+        card_header("Variance explained", plot_download_ui(ns, "scree")),
         card_body(plotOutput(ns("scree"), height = "500px"))
       ),
       # The scatter shows that samples separate. This shows why, which is the
       # question a reader asks next and the app could not answer before.
       card(
+        full_screen = TRUE,
         card_header(
           "Genes driving this component",
-          downloadButton(ns("pdf_loadings"), "PDF", class = "btn-sm ms-auto")
+          plot_download_ui(ns, "loadings")
         ),
         card_body(plotOutput(ns("loadings"), height = "520px"))
       )
@@ -113,7 +115,7 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
         dark = dark_mode,
         point_size = input$point_size %||% 2.5,
         label = isTRUE(input$label_points),
-        font_size = input$font_size %||% 14
+        font_size = input$font_size %||% 21
       )
     }
 
@@ -121,7 +123,7 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
       plot_pca_scree(
         pca()$var_explained,
         dark = dark_mode,
-        font_size = input$font_size %||% 14
+        font_size = input$font_size %||% 21
       )
     }
 
@@ -130,7 +132,7 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
         loadings(),
         pc = input$loading_pc %||% 1,
         dark = dark_mode,
-        font_size = input$font_size %||% 14
+        font_size = input$font_size %||% 21
       )
     }
 
@@ -149,25 +151,32 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
       safe_plot(loadings_plot(dark()), dark())
     })
 
-    output$pdf <- downloadHandler(
-      filename = function() paste0(req(study())$project, "_pca.pdf"),
-      content = function(file) {
-        ggsave(file, plot = current_plot(FALSE), width = 9, height = 6)
-      }
+    register_plot_downloads(
+      output,
+      "scatter",
+      filename = function() paste0(req(study())$project, "_pca"),
+      builder = current_plot
     )
-
-    output$pdf_loadings <- downloadHandler(
+    register_plot_downloads(
+      output,
+      "scree",
+      filename = function() paste0(req(study())$project, "_pca_scree"),
+      builder = scree_plot
+    )
+    register_plot_downloads(
+      output,
+      "loadings",
       filename = function() {
         paste0(
           req(study())$project,
           "_pc",
           input$loading_pc %||% 1,
-          "_loadings.pdf"
+          "_loadings"
         )
       },
-      content = function(file) {
-        ggsave(file, plot = loadings_plot(FALSE), width = 8, height = 7)
-      }
+      builder = loadings_plot,
+      width = 8,
+      height = 7
     )
 
     reactive({

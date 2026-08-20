@@ -83,7 +83,16 @@ ui <- page_navbar(
     # wiring a single one by hand.
     useBusyIndicators(),
     busyIndicatorOptions(spinner_type = "dots", spinner_delay = "0.2s"),
-    tags$head(tags$link(rel = "stylesheet", href = "app.css"))
+    tags$head(
+      # driver.js, vendored in www/ so the tour needs no network call. See
+      # www/driver.js for the version and where to get an update. Loaded
+      # before app.css, so app.css's popover overrides win the cascade at
+      # equal specificity instead of driver.css's own white/black defaults.
+      tags$link(rel = "stylesheet", href = "driver.css"),
+      tags$script(src = "driver.js"),
+      tags$script(src = "tour.js"),
+      tags$link(rel = "stylesheet", href = "app.css")
+    )
   ),
   nav_panel("Browse", study_browser_ui("browser")),
   nav_panel("Overview", study_overview_ui("overview")),
@@ -94,6 +103,15 @@ ui <- page_navbar(
   nav_panel("About", about_ui()),
   nav_spacer(),
   nav_item(uiOutput("study_chip", inline = TRUE)),
+  nav_item(
+    tags$button(
+      id = "take_tour",
+      type = "button",
+      class = "btn btn-sm btn-outline-secondary",
+      bsicons::bs_icon("compass"),
+      "Take a tour"
+    )
+  ),
   nav_item(input_dark_mode(id = "dark_mode")),
   footer = div(
     class = "app-footer",

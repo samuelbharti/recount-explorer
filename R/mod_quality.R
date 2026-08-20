@@ -37,31 +37,23 @@ quality_ui <- function(id) {
     layout_columns(
       col_widths = c(12, 6, 6, 12),
       card(
-        card_header(
-          "Quality metrics",
-          downloadButton(ns("pdf_metrics"), "PDF", class = "btn-sm ms-auto")
-        ),
+        full_screen = TRUE,
+        card_header("Quality metrics", plot_download_ui(ns, "metrics")),
         card_body(plotOutput(ns("metrics"), height = "460px"))
       ),
       card(
-        card_header(
-          "Library composition",
-          downloadButton(ns("pdf_biotype"), "PDF", class = "btn-sm ms-auto")
-        ),
+        full_screen = TRUE,
+        card_header("Library composition", plot_download_ui(ns, "biotype")),
         card_body(plotOutput(ns("biotype"), height = "460px"))
       ),
       card(
-        card_header(
-          "Donor sex",
-          downloadButton(ns("pdf_sex"), "PDF", class = "btn-sm ms-auto")
-        ),
+        full_screen = TRUE,
+        card_header("Donor sex", plot_download_ui(ns, "sex")),
         card_body(plotOutput(ns("sex"), height = "460px"))
       ),
       card(
-        card_header(
-          "Sample correlation",
-          downloadButton(ns("pdf_correlation"), "PDF", class = "btn-sm ms-auto")
-        ),
+        full_screen = TRUE,
+        card_header("Sample correlation", plot_download_ui(ns, "correlation")),
         card_body(plotOutput(ns("correlation"), height = "620px"))
       )
     )
@@ -116,21 +108,21 @@ quality_server <- function(id, study, dark = reactive(FALSE)) {
       correlation_long(m)
     })
 
-    # Built as functions taking `dark_mode`, so the PDF handlers can ask for
-    # the same figure in light mode whatever the screen is showing.
+    # Built as functions taking `dark_mode`, so the download handlers can ask
+    # for the same figure in light mode whatever the screen is showing.
     metrics_plot <- function(dark_mode = FALSE) {
       plot_qc_panel(
         metrics(),
         dark = dark_mode,
         group_label = group_label(),
-        font_size = input$font_size %||% 14
+        font_size = input$font_size %||% 21
       )
     }
     biotype_plot <- function(dark_mode = FALSE) {
       plot_biotype_composition(
         biotype(),
         dark = dark_mode,
-        font_size = input$font_size %||% 14
+        font_size = input$font_size %||% 21
       )
     }
     sex_plot <- function(dark_mode = FALSE) {
@@ -139,7 +131,7 @@ quality_server <- function(id, study, dark = reactive(FALSE)) {
         dark = dark_mode,
         point_size = input$point_size %||% 2.5,
         label = isTRUE(input$label_points),
-        font_size = input$font_size %||% 14
+        font_size = input$font_size %||% 21
       )
     }
     correlation_plot <- function(dark_mode = FALSE) {
@@ -147,7 +139,7 @@ quality_server <- function(id, study, dark = reactive(FALSE)) {
         correlation(),
         dark = dark_mode,
         method = input$cor_method %||% "spearman",
-        font_size = input$font_size %||% 14
+        font_size = input$font_size %||% 21
       )
     }
 
@@ -173,23 +165,23 @@ quality_server <- function(id, study, dark = reactive(FALSE)) {
       safe_plot(correlation_plot(dark()), dark())
     })
 
-    quality_pdf <- function(suffix, builder, height = 6) {
-      downloadHandler(
-        filename = function() {
-          paste0(req(study())$project, "_", suffix, ".pdf")
-        },
-        content = function(file) {
-          ggsave(file, plot = builder(FALSE), width = 9, height = height)
-        }
+    quality_downloads <- function(id_prefix, suffix, builder, height = 6) {
+      register_plot_downloads(
+        output,
+        id_prefix,
+        filename = function() paste0(req(study())$project, "_", suffix),
+        builder = builder,
+        height = height
       )
     }
 
-    output$pdf_metrics <- quality_pdf("quality_metrics", metrics_plot)
-    output$pdf_biotype <- quality_pdf("biotype_composition", biotype_plot)
-    output$pdf_sex <- quality_pdf("donor_sex", sex_plot)
-    # Square, because the heatmap uses coord_fixed and a 9x6 page would leave
-    # half of it blank.
-    output$pdf_correlation <- quality_pdf(
+    quality_downloads("metrics", "quality_metrics", metrics_plot)
+    quality_downloads("biotype", "biotype_composition", biotype_plot)
+    quality_downloads("sex", "donor_sex", sex_plot)
+    # Taller than the rest, matching the card's own 620px against their
+    # 460px, since a correlation grid reads better with more vertical room.
+    quality_downloads(
+      "correlation",
       "sample_correlation",
       correlation_plot,
       height = 8

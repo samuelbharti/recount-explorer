@@ -11,41 +11,34 @@ study_overview_ui <- function(id) {
   ns <- NS(id)
   tagList(
     uiOutput(ns("header")),
-    # One font-size control for both plots below, so it is not offered twice
-    # under two names: it governs the QC scatter and the distribution plot
-    # together, the same way dark mode already does.
-    card(
-      card_body(
-        class = "d-flex align-items-center gap-3 flex-wrap py-2",
-        span(class = "text-muted small", "Text size for the plots below"),
-        div(
-          style = "max-width: 260px; flex: 1 1 220px;",
-          font_size_ui(ns)
-        )
-      )
-    ),
-    layout_columns(
-      col_widths = c(6, 6),
-      card(
-        card_header(
-          "Library size against detected genes",
-          downloadButton(ns("pdf_qc"), "PDF", class = "btn-sm ms-auto")
-        ),
-        card_body(
-          plotOutput(ns("qc"), height = "440px"),
-          plot_controls_ui(ns, size_default = 2.2, include_font = FALSE)
-        )
+    # A sidebar rather than a standalone control bar, matching how Quality,
+    # PCA and Genes all put their plot settings: one font-size control here
+    # governs both plots below, the same way dark mode already does, and
+    # point size and labelling apply to the QC scatter specifically.
+    layout_sidebar(
+      sidebar = sidebar(
+        title = "Plot settings",
+        width = 280,
+        plot_controls_ui(ns, size_default = 2.2)
       ),
-      card(
-        card_header(
-          "Expression distribution",
-          downloadButton(
-            ns("pdf_distribution"),
-            "PDF",
-            class = "btn-sm ms-auto"
-          )
+      layout_columns(
+        col_widths = c(6, 6),
+        card(
+          full_screen = TRUE,
+          card_header(
+            "Library size against detected genes",
+            plot_download_ui(ns, "qc")
+          ),
+          card_body(plotOutput(ns("qc"), height = "440px"))
         ),
-        card_body(plotOutput(ns("distribution"), height = "440px"))
+        card(
+          full_screen = TRUE,
+          card_header(
+            "Expression distribution",
+            plot_download_ui(ns, "distribution")
+          ),
+          card_body(plotOutput(ns("distribution"), height = "440px"))
+        )
       )
     ),
     # The metadata gets the full width of the page. It used to share a row with
@@ -210,18 +203,18 @@ study_overview_server <- function(id, study, dark = reactive(FALSE)) {
       safe_plot(distribution_plot(dark()), dark())
     })
 
-    output$pdf_qc <- downloadHandler(
-      filename = function() paste0(req(study())$project, "_qc.pdf"),
-      content = function(file) {
-        ggsave(file, plot = qc_plot(FALSE), width = 9, height = 6)
-      }
+    register_plot_downloads(
+      output,
+      "qc",
+      filename = function() paste0(req(study())$project, "_qc"),
+      builder = qc_plot
     )
-
-    output$pdf_distribution <- downloadHandler(
-      filename = function() paste0(req(study())$project, "_distribution.pdf"),
-      content = function(file) {
-        ggsave(file, plot = distribution_plot(FALSE), width = 11, height = 6)
-      }
+    register_plot_downloads(
+      output,
+      "distribution",
+      filename = function() paste0(req(study())$project, "_distribution"),
+      builder = distribution_plot,
+      width = 11
     )
 
     # ---- metadata ------------------------------------------------------------

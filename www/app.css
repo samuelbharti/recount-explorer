@@ -217,3 +217,66 @@ body.bslib-page-navbar {
   background: var(--bs-success-bg-subtle);
   color: var(--bs-success-text-emphasis);
 }
+
+/* Guided tour -------------------------------------------------------------
+ *
+ * driver.js ships its own white popover regardless of the page's theme.
+ * These overrides route it through the same Bootstrap variables bslib
+ * already themes, so the tour looks like part of the app rather than a
+ * plugin dropped on top of it, and follows dark mode without a second copy
+ * of these rules.
+ */
+
+.driver-popover {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+}
+
+.driver-popover-title {
+  color: var(--bs-emphasis-color);
+}
+
+.driver-popover-description {
+  color: var(--bs-body-color);
+}
+
+.driver-popover-progress-text {
+  color: var(--bs-secondary-color);
+}
+
+.driver-popover-close-btn {
+  color: var(--bs-secondary-color);
+}
+
+.driver-popover-navigation-btns button {
+  background: var(--bs-primary);
+  color: var(--bs-white, #fff);
+  border: none;
+  border-radius: var(--bs-border-radius);
+  text-shadow: none;
+}
+
+.driver-popover-navigation-btns button.driver-popover-btn-disabled {
+  opacity: 0.5;
+}
+
+.driver-popover-arrow {
+  border-color: transparent;
+}
+
+/* The five arrow sides each carry the matching border colour, since
+ * driver.js draws the arrow as a CSS border triangle rather than a shape. */
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--bs-body-bg);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--bs-body-bg);
+}
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--bs-body-bg);
+}
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--bs-body-bg);
+}
