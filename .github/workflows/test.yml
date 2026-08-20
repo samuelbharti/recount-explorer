@@ -22,6 +22,10 @@ jobs:
     # Linux only. Windows runners bill at twice the rate of Linux runners, and
     # the logic layer under test has no platform specific code.
     runs-on: ubuntu-latest
+    # Dependabot here only bumps GitHub Actions versions in workflow YAML, so
+    # a ninety-package Bioconductor install and test run has nothing to check.
+    # Manual dispatch is unaffected.
+    if: github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]'
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
