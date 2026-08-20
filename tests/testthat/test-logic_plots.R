@@ -174,3 +174,90 @@ test_that("point size reaches the plot", {
   expect_equal(plot_qc(qc, point_size = 5)$layers[[1]]$aes_params$size, 5)
   expect_equal(plot_qc(qc)$layers[[1]]$aes_params$size, 2.2)
 })
+
+test_that("font size reaches every builder's theme", {
+  rse <- fixture_rse()
+  study <- fixture_study()
+  correlation <- correlation_long(sample_correlation(
+    study$log_expr,
+    n_genes = 50
+  ))
+  loadings <- pca_loadings(run_pca(study$log_expr, n_genes = 50, n_pcs = 4))
+  qc <- data.frame(library_size = c(1e6, 2e6), detected_genes = c(100, 200))
+  gene_df <- data.frame(
+    group = c("a", "b"),
+    expression = c(1, 2),
+    sample = c("s1", "s2")
+  )
+  scores <- data.frame(PC1 = c(1, 2), PC2 = c(2, 1), color = c("a", "b"))
+
+  # Every builder that draws text, looped the same way the dark-mode test
+  # above loops builders over both modes.
+  builders <- list(
+    function(fs) plot_qc(qc, font_size = fs),
+    function(fs) plot_gene_expression(gene_df, font_size = fs),
+    function(fs) plot_pca_scatter(scores, c(0.5, 0.3), font_size = fs),
+    function(fs) plot_pca_scree(c(0.5, 0.3), font_size = fs),
+    function(fs) {
+      plot_biotype_composition(biotype_composition(rse), font_size = fs)
+    },
+    function(fs) plot_qc_panel(qc_metrics(rse), font_size = fs),
+    function(fs) plot_sex_check(sex_signal(rse), font_size = fs),
+    function(fs) {
+      plot_expression_distribution(
+        expression_quantiles(study$log_expr),
+        font_size = fs
+      )
+    },
+    function(fs) plot_sample_correlation(correlation, font_size = fs),
+    function(fs) plot_pca_loadings(loadings, font_size = fs)
+  )
+
+  for (build in builders) {
+    small <- build(10)$theme$text$size
+    large <- build(24)$theme$text$size
+    expect_equal(small, 10)
+    expect_equal(large, 24)
+  }
+})
+
+test_that("font size defaults to 14, matching the size before the control existed", {
+  qc <- data.frame(library_size = 1e6, detected_genes = 100)
+
+  expect_equal(plot_qc(qc)$theme$text$size, 14)
+})
+
+test_that("font size scales the parts theme_recount() cannot reach", {
+  # geom_text_repel and annotate() measure size in mm, not the points
+  # theme_recount() uses, so these are scaled by hand and need their own
+  # check that the scaling actually moves.
+  few <- data.frame(
+    library_size = c(1e6, 2e6, 3e6),
+    detected_genes = c(100, 200, 300),
+    sample = c("s1", "s2", "s3")
+  )
+  label_size <- function(fs) {
+    plot_qc(few, label = TRUE, font_size = fs)$layers[[2]]$aes_params$size
+  }
+  expect_gt(label_size(24), label_size(10))
+
+  message_size <- function(fs) {
+    plot_message("x", font_size = fs)$layers[[1]]$aes_params$size
+  }
+  expect_gt(message_size(24), message_size(10))
+
+  rse <- fixture_rse()
+  axis_size <- function(fs) {
+    plot_biotype_composition(
+      biotype_composition(rse),
+      font_size = fs
+    )$theme$axis.text.x$size
+  }
+  expect_gt(axis_size(24), axis_size(10))
+})
+
+test_that("safe_plot forwards font size to the error message it draws", {
+  built <- safe_plot(stop("boom"), font_size = 22)
+
+  expect_equal(built$layers[[1]]$aes_params$size, 22 / 14 * 4.5)
+})

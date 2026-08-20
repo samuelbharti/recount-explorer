@@ -8,6 +8,10 @@
 #
 # `dark` defaults to FALSE, which is what the PDF downloads want: a figure
 # going into a document or onto paper should be light whatever the screen was.
+#
+# Every builder also takes `font_size`, the one number a plot-heavy screen
+# turns out to need most: axis text and tick labels are the first thing to
+# become unreadable on a dense figure, well before anything else does.
 
 plot_palette <- function(dark = FALSE) {
   brand_plot_palette(dark)
@@ -65,7 +69,8 @@ add_point_labels <- function(
   y,
   label_col,
   max_labels = 30,
-  dark = FALSE
+  dark = FALSE,
+  font_size = 14
 ) {
   if (!label_col %in% names(df) || !nrow(df)) {
     return(gg)
@@ -80,7 +85,10 @@ add_point_labels <- function(
       data = shown,
       mapping = ggplot2::aes(label = .data[[label_col]]),
       colour = plot_palette(dark)$fg,
-      size = 3,
+      # geom_text_repel measures size in mm, not the points theme_recount()
+      # uses, so this scales against the same 14pt default rather than
+      # copying the number.
+      size = font_size / 14 * 3,
       min.segment.length = 0,
       segment.alpha = 0.4,
       max.overlaps = Inf,
@@ -88,7 +96,13 @@ add_point_labels <- function(
     )
 }
 
-plot_qc <- function(qc, dark = FALSE, point_size = 2.2, label = FALSE) {
+plot_qc <- function(
+  qc,
+  dark = FALSE,
+  point_size = 2.2,
+  label = FALSE,
+  font_size = 14
+) {
   col <- plot_palette(dark)
   gg <- ggplot2::ggplot(
     qc,
@@ -98,7 +112,7 @@ plot_qc <- function(qc, dark = FALSE, point_size = 2.2, label = FALSE) {
     ggplot2::scale_x_log10(labels = scales::label_comma()) +
     ggplot2::scale_y_continuous(labels = scales::label_comma()) +
     ggplot2::labs(x = "Library size (log scale)", y = "Detected genes") +
-    theme_recount(dark)
+    theme_recount(dark, base_size = font_size)
   if (!label) {
     return(gg)
   }
@@ -108,7 +122,8 @@ plot_qc <- function(qc, dark = FALSE, point_size = 2.2, label = FALSE) {
     "library_size",
     "detected_genes",
     "sample",
-    dark = dark
+    dark = dark,
+    font_size = font_size
   )
 }
 
@@ -117,7 +132,8 @@ plot_gene_expression <- function(
   geom = c("box", "violin"),
   gene_label = NULL,
   group_label = NULL,
-  dark = FALSE
+  dark = FALSE,
+  font_size = 14
 ) {
   geom <- match.arg(geom)
   col <- plot_palette(dark)
@@ -145,7 +161,7 @@ plot_gene_expression <- function(
     ggplot2::labs(x = group_label, y = "log2 CPM", title = gene_label) +
     ggplot2::guides(fill = "none") +
     brand_fill_scale(n = n_levels(df$group)) +
-    theme_recount(dark) +
+    theme_recount(dark, base_size = font_size) +
     ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)
     )
@@ -157,14 +173,15 @@ plot_pca_scatter <- function(
   color_label = NULL,
   dark = FALSE,
   point_size = 2.5,
-  label = FALSE
+  label = FALSE,
+  font_size = 14
 ) {
   col <- plot_palette(dark)
   pct <- function(i) sprintf("PC%d (%.1f%%)", i, 100 * var_explained[i])
   gg <- ggplot2::ggplot(scores, ggplot2::aes(x = PC1, y = PC2, color = color)) +
     ggplot2::geom_point(alpha = 0.8, size = point_size) +
     ggplot2::labs(x = pct(1), y = pct(2), color = color_label) +
-    theme_recount(dark)
+    theme_recount(dark, base_size = font_size)
   gg <- if (is.null(color_label)) {
     gg +
       ggplot2::guides(color = "none") +
@@ -175,10 +192,18 @@ plot_pca_scatter <- function(
   if (!label) {
     return(gg)
   }
-  add_point_labels(gg, scores, "PC1", "PC2", "sample", dark = dark)
+  add_point_labels(
+    gg,
+    scores,
+    "PC1",
+    "PC2",
+    "sample",
+    dark = dark,
+    font_size = font_size
+  )
 }
 
-plot_pca_scree <- function(var_explained, dark = FALSE) {
+plot_pca_scree <- function(var_explained, dark = FALSE, font_size = 14) {
   col <- plot_palette(dark)
   df <- data.frame(
     pc = factor(seq_along(var_explained)),
@@ -187,7 +212,7 @@ plot_pca_scree <- function(var_explained, dark = FALSE) {
   ggplot2::ggplot(df, ggplot2::aes(x = pc, y = var)) +
     ggplot2::geom_col(fill = col$point) +
     ggplot2::labs(x = "PC", y = "% variance") +
-    theme_recount(dark)
+    theme_recount(dark, base_size = font_size)
 }
 
 # Warm categorical scales, so a grouped plot does not fall back to ggplot2's
@@ -237,7 +262,7 @@ n_levels <- function(x) {
 # Views call this instead of stopping, so a study missing a column shows the
 # reason inside the card. A red Shiny error block covers the whole card and
 # does not say which control to change.
-plot_message <- function(text, dark = FALSE) {
+plot_message <- function(text, dark = FALSE, font_size = 14) {
   col <- plot_palette(dark)
   ggplot2::ggplot() +
     ggplot2::annotate(
@@ -246,7 +271,7 @@ plot_message <- function(text, dark = FALSE) {
       y = 0,
       label = paste(strwrap(text, width = 60), collapse = "\n"),
       colour = col$muted,
-      size = 4.5,
+      size = font_size / 14 * 4.5,
       lineheight = 1.2
     ) +
     ggplot2::theme_void() +
@@ -261,13 +286,14 @@ plot_message <- function(text, dark = FALSE) {
 # Wrapped around every renderPlot. Grouping columns come from study metadata
 # that nobody validated, so a builder can always meet something unexpected;
 # the app should stay usable when it does.
-safe_plot <- function(expr, dark = FALSE) {
+safe_plot <- function(expr, dark = FALSE, font_size = 14) {
   tryCatch(
     expr,
     error = function(e) {
       plot_message(
         paste("This plot could not be drawn:", conditionMessage(e)),
-        dark
+        dark,
+        font_size
       )
     }
   )
@@ -279,28 +305,32 @@ safe_plot <- function(expr, dark = FALSE) {
 # labels come off and the axis title says what the axis is instead.
 SAMPLE_AXIS_LIMIT <- 60L
 
-sample_axis <- function(n) {
+sample_axis <- function(n, font_size = 14) {
   if (n <= SAMPLE_AXIS_LIMIT) {
     return(ggplot2::theme(
       axis.text.x = ggplot2::element_text(
         angle = 90,
         hjust = 1,
         vjust = 0.5,
-        size = 7
+        # Kept smaller than the body text even at the default, because these
+        # ticks run one per sample and would collide otherwise; but they
+        # still grow and shrink with everything else.
+        size = font_size * 0.5
       )
     ))
   }
   ggplot2::theme(axis.text.x = ggplot2::element_blank())
 }
 
-plot_biotype_composition <- function(df, dark = FALSE) {
+plot_biotype_composition <- function(df, dark = FALSE, font_size = 14) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message(
       paste(
         "This study has no gene_type annotation, so its library",
         "composition cannot be shown."
       ),
-      dark
+      dark,
+      font_size
     ))
   }
   n <- nlevels(df$sample)
@@ -318,8 +348,8 @@ plot_biotype_composition <- function(df, dark = FALSE) {
       fill = "Biotype"
     ) +
     brand_fill_scale(n = nlevels(df$biotype)) +
-    theme_recount(dark) +
-    sample_axis(n) +
+    theme_recount(dark, base_size = font_size) +
+    sample_axis(n, font_size) +
     ggplot2::theme(panel.grid.major.x = ggplot2::element_blank())
 }
 
@@ -327,12 +357,14 @@ plot_qc_panel <- function(
   df,
   dark = FALSE,
   group_label = NULL,
-  point_size = 1.8
+  point_size = 1.8,
+  font_size = 14
 ) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message(
       "This study carries none of the recount3 quality metrics.",
-      dark
+      dark,
+      font_size
     ))
   }
   col <- plot_palette(dark)
@@ -362,7 +394,7 @@ plot_qc_panel <- function(
     ggplot2::facet_wrap(~metric, scales = "free_y") +
     brand_colour_scale(n = n_levels(df$group)) +
     ggplot2::labs(x = group_label, y = NULL, colour = group_label) +
-    theme_recount(dark)
+    theme_recount(dark, base_size = font_size)
 
   if (!grouped) {
     return(
@@ -382,7 +414,8 @@ plot_sex_check <- function(
   dark = FALSE,
   point_size = 2.5,
   label = FALSE,
-  threshold = 0.3
+  threshold = 0.3,
+  font_size = 14
 ) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message(
@@ -390,7 +423,8 @@ plot_sex_check <- function(
         "This study has no chromosome X and Y read percentages,",
         "so donor sex cannot be checked."
       ),
-      dark
+      dark,
+      font_size
     ))
   }
   col <- plot_palette(dark)
@@ -416,16 +450,24 @@ plot_sex_check <- function(
         threshold
       )
     ) +
-    theme_recount(dark)
+    theme_recount(dark, base_size = font_size)
   if (!label) {
     return(gg)
   }
-  add_point_labels(gg, df, "chry", "chrx", "sample", dark = dark)
+  add_point_labels(
+    gg,
+    df,
+    "chry",
+    "chrx",
+    "sample",
+    dark = dark,
+    font_size = font_size
+  )
 }
 
-plot_expression_distribution <- function(df, dark = FALSE) {
+plot_expression_distribution <- function(df, dark = FALSE, font_size = 14) {
   if (is.null(df) || !nrow(df)) {
-    return(plot_message("No expression values to summarise.", dark))
+    return(plot_message("No expression values to summarise.", dark, font_size))
   }
   col <- plot_palette(dark)
   n <- nlevels(df$sample)
@@ -448,16 +490,22 @@ plot_expression_distribution <- function(df, dark = FALSE) {
       x = sprintf("Sample (%s, ordered by median)", format(n, big.mark = ",")),
       y = "log2 CPM"
     ) +
-    theme_recount(dark) +
-    sample_axis(n) +
+    theme_recount(dark, base_size = font_size) +
+    sample_axis(n, font_size) +
     ggplot2::theme(panel.grid.major.x = ggplot2::element_blank())
 }
 
-plot_sample_correlation <- function(df, dark = FALSE, method = "spearman") {
+plot_sample_correlation <- function(
+  df,
+  dark = FALSE,
+  method = "spearman",
+  font_size = 14
+) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message(
       "A correlation heatmap needs at least three samples.",
-      dark
+      dark,
+      font_size
     ))
   }
   n <- nlevels(df$row)
@@ -474,7 +522,7 @@ plot_sample_correlation <- function(df, dark = FALSE, method = "spearman") {
       fill = sprintf("%s r", tools::toTitleCase(method)),
       subtitle = sprintf("%s samples, clustered", format(n, big.mark = ","))
     ) +
-    theme_recount(dark) +
+    theme_recount(dark, base_size = font_size) +
     ggplot2::theme(panel.grid = ggplot2::element_blank())
   # Past forty samples the labels overlap into a solid band, and the grid
   # itself is the message anyway.
@@ -493,15 +541,15 @@ plot_sample_correlation <- function(df, dark = FALSE, method = "spearman") {
         angle = 90,
         hjust = 1,
         vjust = 0.5,
-        size = 7
+        size = font_size * 0.5
       ),
-      axis.text.y = ggplot2::element_text(size = 7)
+      axis.text.y = ggplot2::element_text(size = font_size * 0.5)
     )
 }
 
-plot_pca_loadings <- function(df, pc = 1, dark = FALSE) {
+plot_pca_loadings <- function(df, pc = 1, dark = FALSE, font_size = 14) {
   if (is.null(df) || !nrow(df)) {
-    return(plot_message("No loadings to show.", dark))
+    return(plot_message("No loadings to show.", dark, font_size))
   }
   df$label <- factor(df$label, levels = df$label[order(df$loading)])
   ggplot2::ggplot(df, ggplot2::aes(x = loading, y = label, fill = direction)) +
@@ -518,5 +566,5 @@ plot_pca_loadings <- function(df, pc = 1, dark = FALSE) {
       fill = NULL,
       subtitle = "Genes that push this component hardest, both ways"
     ) +
-    theme_recount(dark)
+    theme_recount(dark, base_size = font_size)
 }

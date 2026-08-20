@@ -11,6 +11,19 @@ study_overview_ui <- function(id) {
   ns <- NS(id)
   tagList(
     uiOutput(ns("header")),
+    # One font-size control for both plots below, so it is not offered twice
+    # under two names: it governs the QC scatter and the distribution plot
+    # together, the same way dark mode already does.
+    card(
+      card_body(
+        class = "d-flex align-items-center gap-3 flex-wrap py-2",
+        span(class = "text-muted small", "Text size for the plots below"),
+        div(
+          style = "max-width: 260px; flex: 1 1 220px;",
+          font_size_ui(ns)
+        )
+      )
+    ),
     layout_columns(
       col_widths = c(6, 6),
       card(
@@ -20,7 +33,7 @@ study_overview_ui <- function(id) {
         ),
         card_body(
           plotOutput(ns("qc"), height = "440px"),
-          plot_controls_ui(ns, size_default = 2.2)
+          plot_controls_ui(ns, size_default = 2.2, include_font = FALSE)
         )
       ),
       card(
@@ -168,7 +181,8 @@ study_overview_server <- function(id, study, dark = reactive(FALSE)) {
         qc(),
         dark = dark_mode,
         point_size = input$point_size %||% 2.2,
-        label = isTRUE(input$label_points)
+        label = isTRUE(input$label_points),
+        font_size = input$font_size %||% 14
       )
     }
 
@@ -179,7 +193,11 @@ study_overview_server <- function(id, study, dark = reactive(FALSE)) {
     })
 
     distribution_plot <- function(dark_mode = FALSE) {
-      plot_expression_distribution(distribution(), dark = dark_mode)
+      plot_expression_distribution(
+        distribution(),
+        dark = dark_mode,
+        font_size = input$font_size %||% 14
+      )
     }
 
     output$qc <- renderPlot({

@@ -26,6 +26,7 @@ gene_explorer_ui <- function(id) {
         choices = c("Boxplot" = "box", "Violin" = "violin"),
         inline = TRUE
       ),
+      font_size_ui(ns),
       downloadButton(ns("pdf"), "Download PDF", class = "btn-sm")
     ),
     card(
@@ -71,7 +72,8 @@ gene_explorer_server <- function(id, study, dark = reactive(FALSE)) {
         geom = input$geom %||% "box",
         gene_label = gene_label(),
         group_label = if (isTruthy(input$group_by)) input$group_by else NULL,
-        dark = dark_mode
+        dark = dark_mode,
+        font_size = input$font_size %||% 14
       )
     }
 
