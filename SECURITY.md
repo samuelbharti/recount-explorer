@@ -20,9 +20,17 @@ does and what it does not do:
   this text before it renders it. A report of a path that does not escape this
   text is in scope.
 
-CAUTION: A large study allocates a lot of memory in the server process. If you
-deploy this app in public, size the host for that memory and set a limit on the
-sample count.
+CAUTION: A large study allocates a lot of memory in the server process. The app
+refuses any study over 500 samples by default, which is about 1 GB of peak
+memory and allows 98.7 percent of the catalog.
+
+`RECOUNT_EXPLORER_MAX_SAMPLES` moves that limit. Raise it only on a host with
+memory to spare. The largest study in the catalog has 28,706 samples. It needs
+roughly 56 GB. Measured: a 100-sample study occupies 194 MB, which is
+30.4 bytes for each gene in each sample.
+
+The limit is enforced on the server, not only in the interface. Hiding the
+button stops nobody. Anything can send the input.
 
 ## Supported versions
 

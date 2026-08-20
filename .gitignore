@@ -24,6 +24,7 @@ docs/local/
 # The study explorer export is a 20 MB intermediate: it makes a rebuild take
 # two minutes instead of thirty, but build_catalog.R works without it.
 data-raw/parts/
+data-raw/parts-*/
 data-raw/*.csv
 *.rds.tmp
 

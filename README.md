@@ -49,9 +49,21 @@ and needs no network. Loading a study downloads it from the recount3 servers.
 recount3 keeps a local copy of each download through BiocFileCache. Later
 loads of the same study are fast.
 
-CAUTION: Do not start with a GTEx study or a TCGA study. These studies are
-large. They take a long time to load and they need a lot of memory. Start with
-an SRA study of a few dozen samples.
+Every study shows its download size before you load it, and you can filter by
+size. Most studies are small: 18,323 of the 18,998 are under 10 MB, and only
+four are over 200 MB.
+
+CAUTION: the app refuses any study over 500 samples, which is about 1 GB of
+memory. That allows 98.7 percent of the catalog and stops the 238 studies that
+would exhaust a server. Set `RECOUNT_EXPLORER_MAX_SAMPLES` to raise the limit
+on a machine with memory to spare.
+
+To warm the cache before a demo or a workshop, so nothing waits on a download:
+
+```sh
+Rscript data-raw/prefetch_studies.R --max-samples 50 --limit 20 --dry-run
+Rscript data-raw/prefetch_studies.R SRP107565 DRP000425
+```
 
 ## Structure
 
