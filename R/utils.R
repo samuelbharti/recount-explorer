@@ -51,13 +51,39 @@ format_reads <- function(n) {
   format(round(n), big.mark = ",")
 }
 
-# The pair of controls every scatter view needs.
+# The one control every plot-bearing view needs: how large its text is.
 #
-# Point size and labelling are the two things a reader wants to change on a
-# scatter, and three views offer them, so the control block is written once
-# here rather than three times in the modules.
-plot_controls_ui <- function(ns, size_default = 2.2, label_default = FALSE) {
+# A separate helper rather than folded only into plot_controls_ui(), because
+# some views (the gene explorer) have no points to size or label but still
+# have axis text that can be too small to read.
+font_size_ui <- function(ns, default = 14) {
+  shiny::sliderInput(
+    ns("font_size"),
+    "Font size",
+    min = 10,
+    max = 26,
+    value = default,
+    step = 1,
+    ticks = FALSE
+  )
+}
+
+# The controls every scatter view needs.
+#
+# Font size, point size and labelling are what a reader wants to change on a
+# scatter, and several views offer them, so the control block is written once
+# here rather than several times in the modules. `include_font` is FALSE for
+# a view that puts one font-size control somewhere else because it governs
+# more than one plot, so the slider is not offered twice under two names.
+plot_controls_ui <- function(
+  ns,
+  size_default = 2.2,
+  label_default = FALSE,
+  font_default = 14,
+  include_font = TRUE
+) {
   shiny::tagList(
+    if (include_font) font_size_ui(ns, font_default),
     shiny::sliderInput(
       ns("point_size"),
       "Point size",

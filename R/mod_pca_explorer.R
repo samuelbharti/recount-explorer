@@ -112,7 +112,16 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
         color_label = if (isTruthy(input$color_by)) input$color_by else NULL,
         dark = dark_mode,
         point_size = input$point_size %||% 2.5,
-        label = isTRUE(input$label_points)
+        label = isTRUE(input$label_points),
+        font_size = input$font_size %||% 14
+      )
+    }
+
+    scree_plot <- function(dark_mode = FALSE) {
+      plot_pca_scree(
+        pca()$var_explained,
+        dark = dark_mode,
+        font_size = input$font_size %||% 14
       )
     }
 
@@ -120,7 +129,8 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
       plot_pca_loadings(
         loadings(),
         pc = input$loading_pc %||% 1,
-        dark = dark_mode
+        dark = dark_mode,
+        font_size = input$font_size %||% 14
       )
     }
 
@@ -131,7 +141,7 @@ pca_explorer_server <- function(id, study, dark = reactive(FALSE)) {
 
     output$scree <- renderPlot({
       validate(need(study(), "Load a study from the Browse view first."))
-      safe_plot(plot_pca_scree(pca()$var_explained, dark = dark()), dark())
+      safe_plot(scree_plot(dark()), dark())
     })
 
     output$loadings <- renderPlot({

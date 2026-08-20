@@ -119,24 +119,35 @@ quality_server <- function(id, study, dark = reactive(FALSE)) {
     # Built as functions taking `dark_mode`, so the PDF handlers can ask for
     # the same figure in light mode whatever the screen is showing.
     metrics_plot <- function(dark_mode = FALSE) {
-      plot_qc_panel(metrics(), dark = dark_mode, group_label = group_label())
+      plot_qc_panel(
+        metrics(),
+        dark = dark_mode,
+        group_label = group_label(),
+        font_size = input$font_size %||% 14
+      )
     }
     biotype_plot <- function(dark_mode = FALSE) {
-      plot_biotype_composition(biotype(), dark = dark_mode)
+      plot_biotype_composition(
+        biotype(),
+        dark = dark_mode,
+        font_size = input$font_size %||% 14
+      )
     }
     sex_plot <- function(dark_mode = FALSE) {
       plot_sex_check(
         sex(),
         dark = dark_mode,
         point_size = input$point_size %||% 2.5,
-        label = isTRUE(input$label_points)
+        label = isTRUE(input$label_points),
+        font_size = input$font_size %||% 14
       )
     }
     correlation_plot <- function(dark_mode = FALSE) {
       plot_sample_correlation(
         correlation(),
         dark = dark_mode,
-        method = input$cor_method %||% "spearman"
+        method = input$cor_method %||% "spearman",
+        font_size = input$font_size %||% 14
       )
     }
 

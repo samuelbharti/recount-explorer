@@ -207,3 +207,118 @@ test_that("the gene module groups by a many-level column without erroring", {
     }
   )
 })
+
+test_that("the font size control reaches every plot in the gene module", {
+  study <- module_study()
+  first_gene <- rownames(study$rse)[[1]]
+
+  shiny::testServer(
+    gene_explorer_server,
+    args = list(study = reactive(study), dark = reactive(FALSE)),
+    {
+      session$setInputs(
+        gene = first_gene,
+        geom = "box",
+        group_by = "",
+        font_size = 14
+      )
+      small <- current_plot(FALSE)$theme$text$size
+      session$setInputs(font_size = 22)
+      large <- current_plot(FALSE)$theme$text$size
+
+      expect_equal(small, 14)
+      expect_equal(large, 22)
+    }
+  )
+})
+
+test_that("one font size control governs both plots on the overview page", {
+  study <- module_study()
+
+  shiny::testServer(
+    study_overview_server,
+    args = list(study = reactive(study), dark = reactive(FALSE)),
+    {
+      session$setInputs(font_size = 14, point_size = 2.2, label_points = FALSE)
+      qc_small <- qc_plot(FALSE)$theme$text$size
+      dist_small <- distribution_plot(FALSE)$theme$text$size
+
+      session$setInputs(font_size = 22)
+      qc_large <- qc_plot(FALSE)$theme$text$size
+      dist_large <- distribution_plot(FALSE)$theme$text$size
+
+      # One control, not two: both plots move together from a single input,
+      # the same way the shared toolbar above them implies.
+      expect_equal(c(qc_small, dist_small), c(14, 14))
+      expect_equal(c(qc_large, dist_large), c(22, 22))
+    }
+  )
+})
+
+test_that("one font size control governs all four plots in the quality module", {
+  study <- module_study()
+
+  shiny::testServer(
+    quality_server,
+    args = list(study = reactive(study), dark = reactive(FALSE)),
+    {
+      session$setInputs(
+        font_size = 14,
+        group_by = "",
+        top_biotypes = 8,
+        cor_method = "spearman",
+        point_size = 2.5,
+        label_points = FALSE
+      )
+      small <- vapply(
+        list(metrics_plot, biotype_plot, sex_plot, correlation_plot),
+        function(f) f(FALSE)$theme$text$size,
+        numeric(1)
+      )
+
+      session$setInputs(font_size = 22)
+      large <- vapply(
+        list(metrics_plot, biotype_plot, sex_plot, correlation_plot),
+        function(f) f(FALSE)$theme$text$size,
+        numeric(1)
+      )
+
+      expect_equal(small, rep(14, 4))
+      expect_equal(large, rep(22, 4))
+    }
+  )
+})
+
+test_that("one font size control governs the scatter, scree and loadings in PCA", {
+  study <- module_study()
+
+  shiny::testServer(
+    pca_explorer_server,
+    args = list(study = reactive(study), dark = reactive(FALSE)),
+    {
+      session$setInputs(
+        n_genes = 50,
+        color_by = "",
+        loading_pc = 1,
+        font_size = 14,
+        point_size = 2.5,
+        label_points = FALSE
+      )
+      small <- vapply(
+        list(current_plot, scree_plot, loadings_plot),
+        function(f) f(FALSE)$theme$text$size,
+        numeric(1)
+      )
+
+      session$setInputs(font_size = 22)
+      large <- vapply(
+        list(current_plot, scree_plot, loadings_plot),
+        function(f) f(FALSE)$theme$text$size,
+        numeric(1)
+      )
+
+      expect_equal(small, rep(14, 3))
+      expect_equal(large, rep(22, 3))
+    }
+  )
+})
