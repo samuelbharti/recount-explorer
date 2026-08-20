@@ -1,7 +1,8 @@
-# Export module: data downloads and the reproduction script.
+# Export module: data downloads and the reproduction session.
 #
-# The script only needs recount3 and ggplot2, not this app, so a reader can
-# rerun the session without installing anything from here.
+# The session is offered as a plain R script, a Quarto notebook, or an R
+# Markdown notebook. All three come from one builder, so they cannot drift
+# apart, and the preview shows whichever is selected.
 
 export_ui <- function(id) {
   ns <- NS(id)
@@ -26,15 +27,27 @@ export_ui <- function(id) {
           "Sample metadata (.csv)",
           "Every colData column, list columns flattened."
         ),
-        download_row(
-          ns("script"),
-          "Reproduction script (.R)",
-          "Repeats this session with recount3 and ggplot2 only."
+        tags$hr(),
+        div(
+          class = "small text-muted mb-2",
+          "The session as a script or a notebook. All three run on recount3",
+          "and ggplot2 alone, with nothing from this app."
+        ),
+        selectInput(
+          ns("format"),
+          "Format",
+          choices = REPRODUCTION_FORMATS,
+          selected = "r"
+        ),
+        downloadButton(
+          ns("session"),
+          "Download the session",
+          class = "btn-outline-primary w-100"
         )
       )
     ),
     card(
-      card_header("Reproduction script"),
+      card_header(textOutput(ns("preview_title"), inline = TRUE)),
       card_body(verbatimTextOutput(ns("preview")))
     )
   )
@@ -51,16 +64,34 @@ download_row <- function(id, label, hint) {
 
 export_server <- function(id, study, gene_state, pca_state) {
   moduleServer(id, function(input, output, session) {
-    script <- reactive({
+    format <- reactive(input$format %||% "r")
+
+    session_text <- reactive({
       s <- study()
       req(s)
-      build_reproduction_script(s, gene_state(), pca_state())
+      build_reproduction(s, gene_state(), pca_state(), format = format())
+    })
+
+    output$preview_title <- renderText({
+      name <- names(REPRODUCTION_FORMATS)[REPRODUCTION_FORMATS == format()]
+      paste("Preview:", if (length(name)) name else "R script (.R)")
     })
 
     output$preview <- renderText({
       validate(need(study(), "Load a study from the Browse view first."))
-      script()
+      session_text()
     })
+
+    output$session <- downloadHandler(
+      filename = function() {
+        paste0(
+          req(study())$project,
+          "_recount_explorer.",
+          reproduction_extension(format())
+        )
+      },
+      content = function(file) writeLines(session_text(), file)
+    )
 
     output$rse <- downloadHandler(
       filename = function() paste0(req(study())$project, ".rds"),
@@ -89,11 +120,6 @@ export_server <- function(id, study, gene_state, pca_state) {
           row.names = FALSE
         )
       }
-    )
-
-    output$script <- downloadHandler(
-      filename = function() paste0(req(study())$project, "_recount_explorer.R"),
-      content = function(file) writeLines(script(), file)
     )
   })
 }

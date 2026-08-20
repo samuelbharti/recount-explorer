@@ -90,14 +90,49 @@ ui <- page_navbar(
   nav_panel("Genes", gene_explorer_ui("gene")),
   nav_panel("PCA", pca_explorer_ui("pca")),
   nav_panel("Export", export_ui("export")),
+  nav_panel("About", about_ui()),
   nav_spacer(),
   nav_item(uiOutput("study_chip", inline = TRUE)),
   nav_item(input_dark_mode(id = "dark_mode")),
   footer = div(
     class = "app-footer",
-    "Data from the ",
-    tags$a(href = "https://rna.recount.bio/", target = "_blank", "recount3"),
-    " project. Cite Wilks et al. 2021, Genome Biology 22:323."
+    div(
+      class = "app-footer-row",
+      span(
+        "Built by ",
+        tags$a(
+          href = "https://www.samuelbharti.com",
+          target = "_blank",
+          rel = "noopener",
+          "Samuel Bharti"
+        ),
+        " · ",
+        tags$a(
+          href = "https://orcid.org/0000-0003-4190-7058",
+          target = "_blank",
+          rel = "noopener",
+          "ORCID"
+        ),
+        " · ",
+        tags$a(
+          href = "https://github.com/samuelbharti/recount-explorer",
+          target = "_blank",
+          rel = "noopener",
+          "Source"
+        ),
+        " · MIT licence"
+      ),
+      span(
+        "Data from the ",
+        tags$a(
+          href = "https://rna.recount.bio/",
+          target = "_blank",
+          rel = "noopener",
+          "recount3"
+        ),
+        " project. Cite Wilks et al. 2021, Genome Biology 22:323."
+      )
+    )
   )
 )
 
@@ -115,10 +150,16 @@ server <- function(input, output, session) {
     )
   }
 
+  # ggplot2 draws on a white canvas whatever the page looks like, so a plot in
+  # dark mode glares. The builders in logic_plots.R take the mode and colour
+  # themselves. The PDF downloads keep the light theme, since a figure going
+  # into a document should not carry a dark background.
+  dark <- reactive(identical(input$dark_mode, "dark"))
+
   study <- study_browser_server("browser")
-  study_overview_server("overview", study)
-  gene_state <- gene_explorer_server("gene", study)
-  pca_state <- pca_explorer_server("pca", study)
+  study_overview_server("overview", study, dark)
+  gene_state <- gene_explorer_server("gene", study, dark)
+  pca_state <- pca_explorer_server("pca", study, dark)
   export_server("export", study, gene_state, pca_state)
 
   # The loaded study follows the user across every view, so it belongs in the

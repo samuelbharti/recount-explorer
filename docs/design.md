@@ -326,6 +326,33 @@ Measured: 12.6 s to the first row before, 7.4 s after, 44 namespaces instead
 of 98. A test in `tests/testthat/test-logic_recount.R` runs the check in a
 clean subprocess and asserts recount3 stays unloaded.
 
+## Light and dark
+
+ggplot2 draws on a white canvas whatever the page looks like, so the figures
+glared in dark mode.
+
+`logic_plots.R` carries the palette instead. Every builder takes `dark` and
+themes itself. The modules pass the current mode from `input$dark_mode`.
+thematic does this automatically, but an explicit theme is deterministic,
+testable, and one dependency lighter. There is a test asserting that each
+builder paints the background it was asked for.
+
+`dark` defaults to `FALSE`, and the PDF handlers rely on that default rather
+than the screen mode. A figure going into a document belongs on a white
+background whatever the screen was.
+
+## Reproduction formats
+
+The session downloads as an R script, a Quarto notebook, or an R Markdown
+notebook. All three come from one builder: `build_reproduction_script()` makes
+the R, and `script_sections()` splits that at its comment headings so the
+notebook writers can wrap the same code in chunks. The code cannot drift
+between formats, and a test asserts that every line of the script appears in
+each notebook.
+
+Neither notebook needs the quarto CLI or the rmarkdown package. Both formats
+are plain text, and the app only ever writes them.
+
 ## Concurrency
 
 A study download takes seconds or several minutes. On the main R process that

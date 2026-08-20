@@ -58,11 +58,14 @@ study_browser_ui <- function(id) {
           "Study size",
           value = "size",
           icon = bsicons::bs_icon("rulers"),
+          # Defaults to the smallest bucket. The median study has 11 samples,
+          # so this is where most people want to start, and it keeps a first
+          # visit away from the studies that take minutes to load.
           radioButtons(
             ns("samples"),
             "Samples",
             choices = SAMPLE_PRESETS,
-            selected = "any"
+            selected = "0-20"
           ),
           radioButtons(
             ns("download"),
@@ -82,6 +85,7 @@ study_browser_ui <- function(id) {
         open = "closed",
         id = ns("details_pane"),
         uiOutput(ns("load_progress")),
+        uiOutput(ns("loaded_next")),
         uiOutput(ns("details"))
       ),
       div(
@@ -176,7 +180,7 @@ study_browser_server <- function(id) {
       updateTextInput(session, "q", value = "")
       updateCheckboxGroupInput(session, "organisms", selected = character(0))
       updateCheckboxGroupInput(session, "sources", selected = character(0))
-      updateRadioButtons(session, "samples", selected = "any")
+      updateRadioButtons(session, "samples", selected = "0-20")
       updateRadioButtons(session, "download", selected = "any")
     })
 
@@ -250,6 +254,34 @@ study_browser_server <- function(id) {
       )
     })
 
+    # After a load the next move is not obvious from the browse view, so say it
+    # and offer the click rather than leaving the user to find the tab.
+    output$loaded_next <- renderUI({
+      s <- study()
+      if (is.null(s)) {
+        return(NULL)
+      }
+      div(
+        class = "loaded-next",
+        div(
+          class = "small",
+          bsicons::bs_icon("check-circle-fill"),
+          tags$strong(paste(" ", s$project)),
+          " is loaded."
+        ),
+        actionButton(
+          session$ns("go_overview"),
+          "Open the Overview",
+          icon = bsicons::bs_icon("arrow-right-circle"),
+          class = "btn-sm btn-primary w-100 mt-2"
+        )
+      )
+    })
+
+    observeEvent(input$go_overview, {
+      nav_select("nav", "Overview", session = session$rootScope())
+    })
+
     output$details <- renderUI({
       row <- selected_row()
       if (is.null(row)) {
@@ -269,6 +301,22 @@ study_browser_server <- function(id) {
             paste(format(row$n_samples, big.mark = ","), "samples")
           )
         ),
+        if (is.null(blocked)) {
+          input_task_button(
+            session$ns("load"),
+            "Load this study",
+            icon = bsicons::bs_icon("download"),
+            label_busy = "Loading...",
+            class = "w-100 mb-2"
+          )
+        } else {
+          div(
+            class = "alert alert-warning py-2 px-3 small mb-2",
+            tags$strong(bsicons::bs_icon("exclamation-triangle"), " Too large"),
+            tags$div(blocked$reason),
+            tags$div(class = "mt-1", blocked$detail)
+          )
+        },
         div(
           class = "study-cost small text-muted",
           bsicons::bs_icon("download"),
@@ -300,22 +348,6 @@ study_browser_server <- function(id) {
             )
           })
         ),
-        if (is.null(blocked)) {
-          input_task_button(
-            session$ns("load"),
-            "Load this study",
-            icon = bsicons::bs_icon("download"),
-            label_busy = "Loading...",
-            class = "w-100 mt-3"
-          )
-        } else {
-          div(
-            class = "alert alert-warning py-2 px-3 small mt-3 mb-0",
-            tags$strong(bsicons::bs_icon("exclamation-triangle"), " Too large"),
-            tags$div(blocked$reason),
-            tags$div(class = "mt-1", blocked$detail)
-          )
-        }
       )
     })
 
@@ -495,6 +527,8 @@ study_browser_server <- function(id) {
         project = info$project,
         organism = info$organism,
         source = info$file_source,
+        title = info$study_title,
+        download_mb = info$download_mb,
         rse = res$rse,
         log_expr = res$log_expr
       ))
