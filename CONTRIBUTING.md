@@ -81,6 +81,15 @@ The app keeps the computation apart from the interface. Keep it that way:
 If you write `req()` or read `input$` inside a `logic_` file, move that code to
 a module. If you write computation inside a module, move it to a `logic_` file.
 
+## Changing colours
+
+Every colour comes from [`_brand.yml`](_brand.yml). bslib reads it for the
+Bootstrap theme and `R/logic_brand.R` reads it for the plots. Edit that file
+rather than hunting for hex codes in the R or the CSS.
+
+To try a palette without touching the repository, point
+`RECOUNT_EXPLORER_BRAND` at another file.
+
 ## The catalog snapshot
 
 `data/recount3_catalog.rds` holds every recount3 study with its title and its

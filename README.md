@@ -26,9 +26,25 @@ recount3 API and draws the plots. You write no code.
 - **PCA**: Principal component analysis of the samples. The app uses the genes
   with the highest variance. You can color the points by metadata.
 - **Export**: Download the RangedSummarizedExperiment (`.rds`), the log2 CPM
-  matrix (`.csv.gz`), and the sample metadata (`.csv`). The app also writes an R
-  script that repeats the current session. The gene view and the PCA view
-  download the plot on the screen as a PDF.
+  matrix (`.csv.gz`), and the sample metadata (`.csv`). The app also writes the
+  session as an R script, a Quarto notebook, or an R Markdown notebook. The
+  gene view and the PCA view download their plot as a PDF.
+- **About**: What the app is, where the data comes from, how to cite it.
+
+The interface follows your system light or dark setting, and there is a toggle
+in the navigation bar. The plots follow it too. A downloaded PDF stays light. A
+figure going into a document belongs on a white background.
+
+## Theme
+
+Colours live in [`_brand.yml`](_brand.yml), in the
+[brand.yml](https://posit-dev.github.io/brand-yml/) format. bslib reads it to
+build the Bootstrap theme. `R/logic_brand.R` reads the same file for the
+ggplot2 figures. The buttons, the tables and the plots always agree.
+
+The palette is coffee: roasted browns on cream, with caramel in place of the
+usual Bootstrap blue. To try another palette, edit that file, or point
+`RECOUNT_EXPLORER_BRAND` at a different one.
 
 ## Run it
 

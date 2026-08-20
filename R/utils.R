@@ -31,3 +31,22 @@ preset_range <- function(preset) {
     max = if (identical(parts[[2L]], "Inf")) NULL else as.numeric(parts[[2L]])
   )
 }
+
+# 8236451 becomes "8.2 M". Read counts run to tens of millions, and the digits
+# past the first two carry no meaning for a reader scanning a header.
+format_reads <- function(n) {
+  n <- as.numeric(n)
+  if (length(n) != 1L || is.na(n)) {
+    return("unknown")
+  }
+  if (n >= 1e9) {
+    return(sprintf("%.1f B", n / 1e9))
+  }
+  if (n >= 1e6) {
+    return(sprintf("%.1f M", n / 1e6))
+  }
+  if (n >= 1e3) {
+    return(sprintf("%.0f K", n / 1e3))
+  }
+  format(round(n), big.mark = ",")
+}

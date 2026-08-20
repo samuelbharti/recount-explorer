@@ -284,6 +284,8 @@ catalog_proj_info <- function(row) {
     # Carried so the progress label can name the size. create_rse() reads the
     # columns it wants by name, so an extra one is ignored.
     download_mb = as.numeric(row$download_mb %||% NA_real_),
+    # Carried so the loaded study can show its title without a second lookup.
+    study_title = as.character(row$study_title %||% NA_character_),
     stringsAsFactors = FALSE
   )
 }
@@ -377,6 +379,18 @@ catalog_display <- function(df) {
 # on its own rather than after someone edits a hardcoded list.
 catalog_sources <- function(df) {
   sort(unique(as.character(df$file_source)))
+}
+
+# study_external_links() wants a catalog row. A loaded study carries the same
+# three fields under different names, so this adapts one to the other rather
+# than duplicating the link table.
+study_link_row <- function(study) {
+  data.frame(
+    project = as.character(study$project),
+    file_source = as.character(study$source),
+    organism = as.character(study$organism),
+    stringsAsFactors = FALSE
+  )
 }
 
 # Links out to the archive that published the study.
