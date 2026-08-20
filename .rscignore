@@ -20,6 +20,9 @@ air.toml
 # by running this file.
 .Rprofile
 
+# Regenerates manifest.json; a build tool, not part of the served app.
+write_manifest.R
+
 # Local deployment records and Posit Publisher config: account name, deploy
 # history, and (right now) a failed-deploy error message. Bundling these
 # would also be circular.
