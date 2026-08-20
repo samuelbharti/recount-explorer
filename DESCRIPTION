@@ -36,6 +36,7 @@ Imports:
     yaml
 Suggests:
     lintr,
+    png,
     testthat (>= 3.0.0),
     withr
 biocViews: recount3, SummarizedExperiment

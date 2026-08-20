@@ -17,7 +17,7 @@ plot_palette <- function(dark = FALSE) {
   brand_plot_palette(dark)
 }
 
-theme_recount <- function(dark = FALSE, base_size = 14) {
+theme_recount <- function(dark = FALSE, base_size = 21) {
   col <- plot_palette(dark)
   ggplot2::theme_minimal(base_size = base_size) +
     ggplot2::theme(
@@ -31,6 +31,11 @@ theme_recount <- function(dark = FALSE, base_size = 14) {
       plot.title = ggplot2::element_text(colour = col$fg),
       legend.text = ggplot2::element_text(colour = col$muted),
       legend.title = ggplot2::element_text(colour = col$fg),
+      # theme_minimal() sets strip.text to a fixed dark grey rather than
+      # inheriting `text`, so a facet title (the quality metrics panel) stays
+      # near-black regardless of mode and disappears against a dark page.
+      strip.text = ggplot2::element_text(colour = col$fg),
+      strip.background = ggplot2::element_rect(fill = col$bg, colour = NA),
       panel.grid.major = ggplot2::element_line(colour = col$grid),
       panel.grid.minor = ggplot2::element_line(
         colour = col$grid,
@@ -70,7 +75,7 @@ add_point_labels <- function(
   label_col,
   max_labels = 30,
   dark = FALSE,
-  font_size = 14
+  font_size = 21
 ) {
   if (!label_col %in% names(df) || !nrow(df)) {
     return(gg)
@@ -86,8 +91,8 @@ add_point_labels <- function(
       mapping = ggplot2::aes(label = .data[[label_col]]),
       colour = plot_palette(dark)$fg,
       # geom_text_repel measures size in mm, not the points theme_recount()
-      # uses, so this scales against the same 14pt default rather than
-      # copying the number.
+      # uses. 3mm was calibrated against a 14pt theme, so the ratio to 14
+      # is what carries that calibration forward as font_size moves.
       size = font_size / 14 * 3,
       min.segment.length = 0,
       segment.alpha = 0.4,
@@ -101,7 +106,7 @@ plot_qc <- function(
   dark = FALSE,
   point_size = 2.2,
   label = FALSE,
-  font_size = 14
+  font_size = 21
 ) {
   col <- plot_palette(dark)
   gg <- ggplot2::ggplot(
@@ -133,7 +138,7 @@ plot_gene_expression <- function(
   gene_label = NULL,
   group_label = NULL,
   dark = FALSE,
-  font_size = 14
+  font_size = 21
 ) {
   geom <- match.arg(geom)
   col <- plot_palette(dark)
@@ -174,7 +179,7 @@ plot_pca_scatter <- function(
   dark = FALSE,
   point_size = 2.5,
   label = FALSE,
-  font_size = 14
+  font_size = 21
 ) {
   col <- plot_palette(dark)
   pct <- function(i) sprintf("PC%d (%.1f%%)", i, 100 * var_explained[i])
@@ -203,7 +208,7 @@ plot_pca_scatter <- function(
   )
 }
 
-plot_pca_scree <- function(var_explained, dark = FALSE, font_size = 14) {
+plot_pca_scree <- function(var_explained, dark = FALSE, font_size = 21) {
   col <- plot_palette(dark)
   df <- data.frame(
     pc = factor(seq_along(var_explained)),
@@ -262,7 +267,7 @@ n_levels <- function(x) {
 # Views call this instead of stopping, so a study missing a column shows the
 # reason inside the card. A red Shiny error block covers the whole card and
 # does not say which control to change.
-plot_message <- function(text, dark = FALSE, font_size = 14) {
+plot_message <- function(text, dark = FALSE, font_size = 21) {
   col <- plot_palette(dark)
   ggplot2::ggplot() +
     ggplot2::annotate(
@@ -271,6 +276,8 @@ plot_message <- function(text, dark = FALSE, font_size = 14) {
       y = 0,
       label = paste(strwrap(text, width = 60), collapse = "\n"),
       colour = col$muted,
+      # Same mm-to-pt calibration as add_point_labels(): 4.5mm read right
+      # against the plot's original 14pt theme.
       size = font_size / 14 * 4.5,
       lineheight = 1.2
     ) +
@@ -286,7 +293,7 @@ plot_message <- function(text, dark = FALSE, font_size = 14) {
 # Wrapped around every renderPlot. Grouping columns come from study metadata
 # that nobody validated, so a builder can always meet something unexpected;
 # the app should stay usable when it does.
-safe_plot <- function(expr, dark = FALSE, font_size = 14) {
+safe_plot <- function(expr, dark = FALSE, font_size = 21) {
   tryCatch(
     expr,
     error = function(e) {
@@ -305,7 +312,7 @@ safe_plot <- function(expr, dark = FALSE, font_size = 14) {
 # labels come off and the axis title says what the axis is instead.
 SAMPLE_AXIS_LIMIT <- 60L
 
-sample_axis <- function(n, font_size = 14) {
+sample_axis <- function(n, font_size = 21) {
   if (n <= SAMPLE_AXIS_LIMIT) {
     return(ggplot2::theme(
       axis.text.x = ggplot2::element_text(
@@ -322,7 +329,7 @@ sample_axis <- function(n, font_size = 14) {
   ggplot2::theme(axis.text.x = ggplot2::element_blank())
 }
 
-plot_biotype_composition <- function(df, dark = FALSE, font_size = 14) {
+plot_biotype_composition <- function(df, dark = FALSE, font_size = 21) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message(
       paste(
@@ -358,7 +365,7 @@ plot_qc_panel <- function(
   dark = FALSE,
   group_label = NULL,
   point_size = 1.8,
-  font_size = 14
+  font_size = 21
 ) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message(
@@ -415,7 +422,7 @@ plot_sex_check <- function(
   point_size = 2.5,
   label = FALSE,
   threshold = 0.3,
-  font_size = 14
+  font_size = 21
 ) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message(
@@ -465,7 +472,7 @@ plot_sex_check <- function(
   )
 }
 
-plot_expression_distribution <- function(df, dark = FALSE, font_size = 14) {
+plot_expression_distribution <- function(df, dark = FALSE, font_size = 21) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message("No expression values to summarise.", dark, font_size))
   }
@@ -499,7 +506,7 @@ plot_sample_correlation <- function(
   df,
   dark = FALSE,
   method = "spearman",
-  font_size = 14
+  font_size = 21
 ) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message(
@@ -515,7 +522,10 @@ plot_sample_correlation <- function(
   ) +
     ggplot2::geom_raster() +
     brand_gradient_scale(dark, "fill") +
-    ggplot2::coord_fixed() +
+    # Not coord_fixed(): a fixed-aspect panel narrower than the card leaves a
+    # margin that plot.background does not reach, and ggsave papers over it
+    # with the theme colour on export but the on-screen renderer does not, so
+    # the gap shows as the renderer's own default white in every mode.
     ggplot2::labs(
       x = NULL,
       y = NULL,
@@ -547,7 +557,7 @@ plot_sample_correlation <- function(
     )
 }
 
-plot_pca_loadings <- function(df, pc = 1, dark = FALSE, font_size = 14) {
+plot_pca_loadings <- function(df, pc = 1, dark = FALSE, font_size = 21) {
   if (is.null(df) || !nrow(df)) {
     return(plot_message("No loadings to show.", dark, font_size))
   }
