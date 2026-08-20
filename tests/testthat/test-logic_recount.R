@@ -41,45 +41,37 @@ test_that("gene_choices falls back to the id for missing or blank symbols", {
 test_that("metadata_group_choices keeps only usable categorical columns", {
   rse <- fixture_rse()
 
+  # Named now, and sorted by group count. replicate_id is gone because one
+  # level per sample is an identifier, not a grouping.
   expect_equal(
-    metadata_group_choices(rse),
-    c("tissue", "condition", "replicate_id")
+    unname(metadata_group_choices(rse)),
+    c("condition", "tissue", "donor")
   )
 })
 
 test_that("metadata_group_choices respects max_levels", {
   rse <- fixture_rse()
 
-  # replicate_id has one level per sample, so it drops out below 12.
+  # donor has 10 levels, so it drops out below that.
   expect_equal(
-    metadata_group_choices(rse, max_levels = 5),
-    c(
-      "tissue",
-      "condition"
-    )
+    unname(metadata_group_choices(rse, max_levels = 5)),
+    c("condition", "tissue")
   )
 })
 
-test_that("metadata_table drops uninformative and list columns", {
+test_that("metadata_table shows a short chosen set, not everything", {
   rse <- fixture_rse()
   tbl <- metadata_table(rse)
 
   expect_s3_class(tbl, "data.frame")
   expect_equal(nrow(tbl), ncol(rse))
   expect_equal(tbl$sample, colnames(rse))
-  expect_equal(names(tbl), c("sample", "tissue", "condition", "replicate_id"))
-
-  # batch is constant, all_na is empty, attributes is a list column.
-  expect_false(any(c("batch", "all_na", "attributes") %in% names(tbl)))
-})
-
-test_that("metadata_table caps the column count", {
-  rse <- fixture_rse()
-  tbl <- metadata_table(rse, max_cols = 2)
-
-  # The sample column is added on top of the cap.
-  expect_equal(ncol(tbl), 3L)
+  # Short enough to fit without a horizontal scrollbar, which is the point.
+  expect_lte(ncol(tbl), 8L)
   expect_equal(names(tbl)[1], "sample")
+
+  # batch is constant and all_na is empty, so neither is ever offered.
+  expect_false(any(c("batch", "all_na") %in% names(tbl)))
 })
 
 test_that("recount3_available reports on the installed namespace", {
@@ -112,4 +104,108 @@ test_that("recount3_installed answers without loading recount3", {
     stderr = TRUE
   ))
   expect_equal(tail(out, 1), "FALSE")
+})
+
+test_that("metadata_columns keeps the default short and always leads with sample", {
+  rse <- fixture_rse()
+
+  cols <- metadata_columns(rse)
+
+  expect_lte(length(cols$default), 8L)
+  expect_equal(cols$default[[1]], "sample")
+  expect_true(all(cols$default %in% cols$all))
+  # The all-NA and constant columns carry nothing, so neither list offers them.
+  expect_false("all_na" %in% cols$all)
+  expect_false("batch" %in% cols$all)
+})
+
+test_that("metadata_columns prefers the quality metrics over whatever comes first", {
+  rse <- fixture_rse()
+
+  cols <- metadata_columns(rse)
+
+  expect_true(any(unname(QC_METRICS) %in% cols$default))
+})
+
+test_that("metadata_table shows the columns asked for and nothing else", {
+  rse <- fixture_rse()
+
+  df <- metadata_table(rse, c("tissue", "condition"))
+
+  expect_equal(names(df), c("sample", "tissue", "condition"))
+  expect_equal(nrow(df), ncol(rse))
+  # An unknown column is ignored rather than erroring, because the picker can
+  # still hold a column from a study that has since been unloaded.
+  expect_equal(
+    names(metadata_table(rse, c("tissue", "nope"))),
+    c("sample", "tissue")
+  )
+})
+
+test_that("metadata_table flattens list columns instead of breaking on them", {
+  rse <- fixture_rse()
+
+  df <- metadata_table(rse, "attributes")
+
+  expect_type(df$attributes, "character")
+  expect_match(df$attributes[[1]], "key1")
+})
+
+test_that("sample_detail returns every recorded field for one sample", {
+  rse <- fixture_rse()
+  sample <- colnames(rse)[[2]]
+
+  df <- sample_detail(rse, sample)
+
+  expect_equal(names(df), c("field", "value"))
+  expect_true("tissue" %in% df$field)
+  expect_equal(df$value[df$field == "tissue"], "liver")
+  # Fields with nothing in them are dropped, so the detail view is not padded
+  # with rows that say nothing.
+  expect_false("all_na" %in% df$field)
+})
+
+test_that("sample_detail returns NULL for a sample that is not there", {
+  expect_null(sample_detail(fixture_rse(), "no-such-sample"))
+})
+
+test_that("metadata_group_choices labels each column with its group count", {
+  rse <- fixture_rse()
+
+  choices <- metadata_group_choices(rse)
+
+  expect_true("tissue" %in% choices)
+  expect_match(
+    names(choices)[choices == "tissue"],
+    "tissue (3 groups)",
+    fixed = TRUE
+  )
+  # Sorted by count, so the two-level columns come first.
+  counts <- as.integer(sub("^.*[(]([0-9]+) groups[)]$", "\\1", names(choices)))
+  expect_false(is.unsorted(counts))
+})
+
+test_that("metadata_group_choices drops identifiers and constants", {
+  rse <- fixture_rse()
+
+  choices <- metadata_group_choices(rse)
+
+  # One distinct value per sample: grouping by it makes one box per sample.
+  expect_false("replicate_id" %in% choices)
+  expect_false("batch" %in% choices)
+  expect_false("all_na" %in% choices)
+  # But a column that merely has many levels is still a real grouping.
+  expect_true("donor" %in% choices)
+})
+
+test_that("gene_symbols falls back to the id where no symbol is recorded", {
+  rse <- fixture_rse()
+
+  symbols <- gene_symbols(rse)
+
+  expect_equal(names(symbols), rownames(rse))
+  # The fixture blanks the symbol on genes 3 and 4.
+  expect_equal(unname(symbols[3]), rownames(rse)[3])
+  expect_equal(unname(symbols[4]), rownames(rse)[4])
+  expect_equal(unname(symbols[1]), "GENE1")
 })

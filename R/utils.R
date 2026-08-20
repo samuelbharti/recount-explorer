@@ -50,3 +50,30 @@ format_reads <- function(n) {
   }
   format(round(n), big.mark = ",")
 }
+
+# The pair of controls every scatter view needs.
+#
+# Point size and labelling are the two things a reader wants to change on a
+# scatter, and three views offer them, so the control block is written once
+# here rather than three times in the modules.
+plot_controls_ui <- function(ns, size_default = 2.2, label_default = FALSE) {
+  shiny::tagList(
+    shiny::sliderInput(
+      ns("point_size"),
+      "Point size",
+      min = 0.5,
+      max = 6,
+      value = size_default,
+      step = 0.5,
+      ticks = FALSE
+    ),
+    shiny::checkboxInput(
+      ns("label_points"),
+      "Label points",
+      value = label_default
+    ),
+    shiny::helpText(
+      "Above 30 points only the samples furthest from the middle are named."
+    )
+  )
+}

@@ -87,6 +87,7 @@ ui <- page_navbar(
   ),
   nav_panel("Browse", study_browser_ui("browser")),
   nav_panel("Overview", study_overview_ui("overview")),
+  nav_panel("Quality", quality_ui("quality")),
   nav_panel("Genes", gene_explorer_ui("gene")),
   nav_panel("PCA", pca_explorer_ui("pca")),
   nav_panel("Export", export_ui("export")),
@@ -158,9 +159,10 @@ server <- function(input, output, session) {
 
   study <- study_browser_server("browser")
   study_overview_server("overview", study, dark)
+  quality_state <- quality_server("quality", study, dark)
   gene_state <- gene_explorer_server("gene", study, dark)
   pca_state <- pca_explorer_server("pca", study, dark)
-  export_server("export", study, gene_state, pca_state)
+  export_server("export", study, gene_state, pca_state, quality_state)
 
   # The loaded study follows the user across every view, so it belongs in the
   # navbar rather than on one page.

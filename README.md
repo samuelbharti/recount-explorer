@@ -19,16 +19,29 @@ recount3 API and draws the plots. You write no code.
   Filters sit on the left and the study you select opens on the right. The app
   loads a study on a background process, so it stays responsive, and reports
   each step of the load rather than showing a spinner.
-- **Study overview**: The headline numbers for the study, a table of the sample
-  metadata, and a quality plot of library size against detected genes.
+- **Study overview**: The headline numbers for the study, a quality plot of
+  library size against detected genes, and the spread of log2 CPM in each
+  sample. The sample metadata sits below in its own table. It shows a short
+  set of columns and never scrolls sideways; pick more columns from the list
+  above it, or select a sample to read every field recorded for it.
+- **Quality**: The checks to run before you trust a study, all built from data
+  the study already carries. The metric panel plots what recount3 measured
+  during alignment: how much of each sample mapped, how much landed in genes,
+  and how much is mitochondrial or intronic. Library composition shows the
+  share of reads by gene biotype, which is how you spot rRNA or globin. The
+  donor sex plot separates samples on chromosome X and Y reads. The
+  correlation heatmap clusters the samples and shows batch structure that PCA
+  can hide.
 - **Gene explorer**: Search for one gene. The app plots the expression of that
   gene as log2 CPM. You can split the plot by a metadata column.
 - **PCA**: Principal component analysis of the samples. The app uses the genes
-  with the highest variance. You can color the points by metadata.
+  with the highest variance. You can color the points by metadata. The
+  loadings plot names the genes that push a component hardest, which is why
+  the samples separate.
 - **Export**: Download the RangedSummarizedExperiment (`.rds`), the log2 CPM
   matrix (`.csv.gz`), and the sample metadata (`.csv`). The app also writes the
   session as an R script, a Quarto notebook, or an R Markdown notebook. The
-  gene view and the PCA view download their plot as a PDF.
+  overview, quality, gene and PCA views download each of their plots as a PDF.
 - **About**: What the app is, where the data comes from, how to cite it.
 
 The interface follows your system light or dark setting, and there is a toggle
@@ -89,16 +102,17 @@ app.R                    App layer: page layout, mirai daemons, module wiring
 R/
   logic_catalog.R        Catalog snapshot, study titles and abstracts (Shiny-free)
   logic_recount.R        recount3 access: study load, log2 CPM (Shiny-free)
-  logic_analysis.R       QC, PCA, per-gene expression frames (Shiny-free)
+  logic_analysis.R       QC, PCA, quality metrics, per-gene frames (Shiny-free)
   logic_plots.R          Plot builders shared by views and PDF downloads (Shiny-free)
   logic_export.R         Reproduction script builder, CSV export frames (Shiny-free)
   mod_study_browser.R    Catalog browsing, background load, returns the study reactive
-  mod_study_overview.R   Metadata and QC views
+  mod_study_overview.R   Study header, QC and distribution plots, metadata table
+  mod_quality.R          Quality metrics, biotypes, donor sex, sample correlation
   mod_gene_explorer.R    Per-gene expression by group, plot PDF download
-  mod_pca_explorer.R     Sample-level PCA, plot PDF download
+  mod_pca_explorer.R     Sample-level PCA and gene loadings, plot PDF downloads
   mod_export.R           Data downloads and reproduction script
   utils.R                Small helpers
-tests/testthat/          Logic layer tests. They use a fixture and never the network
+tests/testthat/          Logic and module tests. They use a fixture, never the network
 www/app.css              Styles for the stat tiles and the spacing
 docs/design.md           Architecture and design notes
 ```
