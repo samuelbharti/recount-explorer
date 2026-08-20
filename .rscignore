@@ -1,0 +1,48 @@
+# Controls what rsconnect (and Posit Publisher, which uses the same
+# mechanism) bundles for deployment. One name per line, matched exactly
+# against each directory's own listing: no globs, no trailing slashes, no
+# regex. List the top-level name of anything that should not ship, and its
+# whole subtree is pruned before the bundler ever looks inside it.
+#
+# .git, .gitignore, renv, rsconnect, node_modules, .Rproj.user and .Rhistory
+# are already excluded by rsconnect itself and do not need an entry here.
+
+# CI and repo tooling: no runtime purpose on the server.
+.github
+.gitattributes
+.lintr
+.pre-commit-config.yaml
+.Rbuildignore
+air.toml
+
+# Sources renv/activate.R, which rsconnect already strips out with the rest
+# of renv/. Connect restores the library from renv.lock in the manifest, not
+# by running this file.
+.Rprofile
+
+# Local deployment records and Posit Publisher config: account name, deploy
+# history, and (right now) a failed-deploy error message. Bundling these
+# would also be circular.
+.posit
+rsconnect
+
+# Test suite: exercises the Shiny-free logic layer against a fixture, not
+# needed to serve the app.
+tests
+
+# Catalog build scripts and their scratch output. The app only reads the
+# finished snapshot in data/. The scratch directories alone can hold
+# hundreds of intermediate .rds files from an interrupted build.
+data-raw
+
+# Design notes and local working docs (docs/local/ is gitignored but may
+# still exist on disk), not part of the running app.
+docs
+
+# Secrets, in case one exists locally but was never committed.
+.Renviron
+.env
+
+# Leftover from the React front end explored early on; harmless if absent.
+node_modules
+.vite
