@@ -28,7 +28,7 @@ jobs:
     # minute for nothing. Manual dispatch is unaffected.
     if: github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: posit-dev/setup-air@v1
 
