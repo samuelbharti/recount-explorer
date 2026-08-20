@@ -330,6 +330,17 @@ catalog_summary_line <- function(df) {
   )
 }
 
+# Columns the results table shows, in order. The abstract is deliberately not
+# among them: at roughly 900 characters a row it would swamp the table, and the
+# right pane shows it for the one selected study instead.
+CATALOG_TABLE_COLUMNS <- c(
+  "project",
+  "organism",
+  "file_source",
+  "n_samples",
+  "study_title"
+)
+
 # Sorted source names for the filter control, so a new recount3 source appears
 # on its own rather than after someone edits a hardcoded list.
 catalog_sources <- function(df) {

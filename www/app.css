@@ -1,0 +1,89 @@
+/* Custom styles on top of bslib.
+ *
+ * Deliberately small. bslib supplies the grid, the controls, focus states and
+ * the dark mode; this file only styles the few things it has no opinion about.
+ * Colours come from Bootstrap variables so dark mode works without a second
+ * palette here. */
+
+/* Browse view ------------------------------------------------------------ */
+
+.browse-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+}
+
+.search-row .form-group {
+  margin-bottom: 0;
+}
+
+.catalog-meta {
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+}
+
+/* Selected study pane ---------------------------------------------------- */
+
+.study-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+/* Abstracts run to 10,000 characters, so the pane scrolls rather than pushing
+ * the load button out of reach. */
+.abstract-box {
+  max-height: 320px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  padding: 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-tertiary-bg);
+}
+
+.study-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+/* Navbar study chip ------------------------------------------------------ */
+
+.study-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.study-chip-empty {
+  color: var(--bs-secondary-color);
+  border-style: dashed;
+}
+
+/* Export ----------------------------------------------------------------- */
+
+.download-row + .download-row {
+  margin-top: 0.9rem;
+}
+
+.download-list .btn {
+  text-align: left;
+}
+
+/* Footer ----------------------------------------------------------------- */
+
+.app-footer {
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+}

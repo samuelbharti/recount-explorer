@@ -15,9 +15,9 @@ recount3 API and draws the plots. You write no code.
 ## Views
 
 - **Browse studies**: All 18,998 studies, with no waiting and no network call.
-  One search box covers the accession, the title, and the abstract text. Select
-  a study to read its abstract, then load it. The app loads the study on a
-  background process, so the app stays responsive.
+  One search box covers the accession, the title, and the abstract text.
+  Filters sit on the left and the study you select opens on the right. The app
+  loads a study on a background process, so it stays responsive.
 - **Study overview**: The headline numbers for the study, a table of the sample
   metadata, and a quality plot of library size against detected genes.
 - **Gene explorer**: Search for one gene. The app plots the expression of that
@@ -39,11 +39,10 @@ shiny::runApp()
 ```
 
 `renv::restore()` installs the package versions that `renv.lock` records. That
-includes the Bioconductor packages and shinyreact, which comes from GitHub.
+includes the Bioconductor packages.
 
-The built front end is committed, so a clone runs with nothing but the R side.
-You need Node only to change the interface. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+There is no build step and no JavaScript toolchain. The interface is bslib, so
+every part of it is R code you can edit and reload.
 
 The catalog comes from a snapshot in `data/`, so the study list appears at once
 and needs no network. Loading a study downloads it from the recount3 servers.
@@ -84,9 +83,6 @@ explains why.
 ```sh
 prek install        # install the git hooks: air, lintr, secret scanning
 air format .        # format the R code
-npm install         # front end dependencies, needs Node 20 or newer
-npm run build       # rebuild www/app.js and www/style.css
-npm run dev         # rebuild on every change
 ```
 
 ```r
