@@ -78,7 +78,7 @@ gene_explorer_server <- function(id, study, dark = reactive(FALSE)) {
     output$plot <- renderPlot({
       validate(need(study(), "Load a study from the Browse view first."))
       validate(need(input$gene, "Search for a gene in the sidebar."))
-      current_plot(dark())
+      safe_plot(current_plot(dark()), dark())
     })
 
     output$pdf <- downloadHandler(

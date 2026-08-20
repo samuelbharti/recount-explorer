@@ -106,11 +106,37 @@ brand_plot_palette <- function(dark = FALSE, colors = brand_colors()) {
 }
 
 # The qualitative scale for grouped plots, warm rather than the usual blues.
-brand_qualitative <- function(colors = brand_colors()) {
-  unname(vapply(
+#
+# `n` is the number of levels the plot actually has. There are eight named
+# colours, and metadata_group_choices() will happily offer a column with more
+# levels than that, so past eight we ramp between the named colours instead of
+# handing ggplot2 a short vector and letting it error.
+brand_qualitative <- function(colors = brand_colors(), n = NULL) {
+  base <- unname(vapply(
     c("caramel", "sage", "coffee", "amber", "slate", "brick", "latte", "roast"),
     brand_color,
     character(1),
     colors = colors
   ))
+  if (is.null(n)) {
+    return(base)
+  }
+  n <- max(as.integer(n), 1L)
+  if (n <= length(base)) {
+    return(base[seq_len(n)])
+  }
+  grDevices::colorRampPalette(base)(n)
+}
+
+# The continuous ramp, low value to high, for the correlation heatmap.
+#
+# Mode aware because the ends have to sit against the page: a cream low end
+# disappears on a dark background, and an espresso low end disappears on a
+# light one.
+brand_sequential <- function(dark = FALSE, colors = brand_colors()) {
+  pick <- function(name) brand_color(name, colors)
+  if (dark) {
+    return(c(pick("grounds"), pick("cinnamon"), pick("foam")))
+  }
+  c(pick("foam"), pick("cinnamon"), pick("espresso"))
 }
