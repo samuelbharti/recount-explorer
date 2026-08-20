@@ -11,6 +11,17 @@
 
 # Presets rather than a slider. The median study has 11 samples and the largest
 # has 28,706, so a linear control over that range is unusable.
+# Named buckets rather than a number box. Download size is the thing that
+# decides whether a study is worth clicking, and "under 10 MB" is a decision a
+# reader can make instantly.
+SIZE_PRESETS <- c(
+  "Any size" = "any",
+  "Under 10 MB" = "0-10",
+  "10 to 50 MB" = "10-50",
+  "50 to 200 MB" = "50-200",
+  "Over 200 MB" = "200-Inf"
+)
+
 SAMPLE_PRESETS <- c(
   "Any size" = "any",
   "Up to 20 samples" = "0-20",
@@ -49,8 +60,14 @@ study_browser_ui <- function(id) {
           icon = bsicons::bs_icon("rulers"),
           radioButtons(
             ns("samples"),
-            NULL,
+            "Samples",
             choices = SAMPLE_PRESETS,
+            selected = "any"
+          ),
+          radioButtons(
+            ns("download"),
+            "Download",
+            choices = SIZE_PRESETS,
             selected = "any"
           )
         )
@@ -125,22 +142,13 @@ study_browser_server <- function(id) {
     # turns that into one pass for each search rather than one for each letter.
     query <- reactive(input$q) |> debounce(350)
 
-    sample_range <- reactive({
-      preset <- input$samples %||% "any"
-      if (identical(preset, "any")) {
-        return(list(min = NULL, max = NULL))
-      }
-      parts <- strsplit(preset, "-", fixed = TRUE)[[1L]]
-      list(
-        min = as.numeric(parts[[1L]]),
-        max = if (parts[[2L]] == "Inf") NULL else as.numeric(parts[[2L]])
-      )
-    })
+    sample_range <- reactive(preset_range(input$samples))
+    download_range <- reactive(preset_range(input$download))
 
     filtered <- reactive({
       req(!is.null(catalog))
       rng <- sample_range()
-      catalog_search(
+      out <- catalog_search(
         catalog,
         query = query() %||% "",
         organisms = input$organisms,
@@ -148,6 +156,19 @@ study_browser_server <- function(id) {
         min_samples = rng$min,
         max_samples = rng$max
       )
+      dl <- download_range()
+      if (!is.null(dl$min) || !is.null(dl$max)) {
+        mb <- catalog_download_mb(out)
+        keep <- rep(TRUE, nrow(out))
+        if (!is.null(dl$min)) {
+          keep <- keep & mb >= dl$min
+        }
+        if (!is.null(dl$max)) {
+          keep <- keep & mb <= dl$max
+        }
+        out <- out[keep, , drop = FALSE]
+      }
+      out
     })
 
     observeEvent(input$clear, {
@@ -155,6 +176,7 @@ study_browser_server <- function(id) {
       updateCheckboxGroupInput(session, "organisms", selected = character(0))
       updateCheckboxGroupInput(session, "sources", selected = character(0))
       updateRadioButtons(session, "samples", selected = "any")
+      updateRadioButtons(session, "download", selected = "any")
     })
 
     output$catalog <- DT::renderDT(
@@ -164,17 +186,24 @@ study_browser_server <- function(id) {
           "No catalog snapshot. Run Rscript data-raw/build_catalog.R"
         ))
         DT::datatable(
-          filtered()[, CATALOG_TABLE_COLUMNS, drop = FALSE],
+          catalog_display(filtered()),
           selection = "single",
           rownames = FALSE,
-          colnames = c("Study", "Organism", "Source", "Samples", "Title"),
+          colnames = c(
+            "Study",
+            "Organism",
+            "Source",
+            "Samples",
+            "Download",
+            "Title"
+          ),
           escape = TRUE,
           options = list(
             pageLength = 25,
             lengthMenu = c(10, 25, 50, 100),
             order = list(list(3, "desc")),
             scrollX = TRUE,
-            columnDefs = list(list(targets = 4, width = "50%"))
+            columnDefs = list(list(targets = 5, width = "45%"))
           )
         )
       },
@@ -226,6 +255,7 @@ study_browser_server <- function(id) {
         return(p(class = "text-muted small", "Select a study in the table."))
       }
       links <- study_external_links(row)
+      blocked <- study_load_block(row)
       tagList(
         h5(row$study_title),
         div(
@@ -238,14 +268,16 @@ study_browser_server <- function(id) {
             paste(format(row$n_samples, big.mark = ","), "samples")
           )
         ),
-        if (row$n_samples > 1000) {
-          div(
-            class = "alert alert-warning py-2 px-3 small",
-            bsicons::bs_icon("exclamation-triangle"),
-            " This study is large. It takes a long time to load and it needs a",
-            " lot of memory."
+        div(
+          class = "study-cost small text-muted",
+          bsicons::bs_icon("download"),
+          sprintf(
+            " %s to download, %s. Needs roughly %s of memory.",
+            format_size_mb(study_download_estimate_mb(row)),
+            format_download_time(study_download_estimate_mb(row)),
+            format_size_mb(estimated_memory_mb(row$n_samples, row$organism))
           )
-        },
+        ),
         div(
           class = "abstract-box",
           if (nzchar(row$study_abstract)) {
@@ -267,18 +299,59 @@ study_browser_server <- function(id) {
             )
           })
         ),
-        input_task_button(
-          session$ns("load"),
-          "Load this study",
-          icon = bsicons::bs_icon("download"),
-          label_busy = "Loading...",
-          class = "w-100 mt-3"
-        )
+        if (is.null(blocked)) {
+          input_task_button(
+            session$ns("load"),
+            "Load this study",
+            icon = bsicons::bs_icon("download"),
+            label_busy = "Loading...",
+            class = "w-100 mt-3"
+          )
+        } else {
+          div(
+            class = "alert alert-warning py-2 px-3 small mt-3 mb-0",
+            tags$strong(bsicons::bs_icon("exclamation-triangle"), " Too large"),
+            tags$div(blocked$reason),
+            tags$div(class = "mt-1", blocked$detail)
+          )
+        }
       )
     })
 
     study <- reactiveVal(NULL)
     pending <- reactiveVal(NULL)
+    prefetch <- reactiveVal(NULL)
+
+    # Start warming the selected study while the user reads its abstract.
+    # About 70 percent of a cold load is the download, and a reader usually
+    # spends longer than that deciding.
+    #
+    # The previous prefetch is cancelled first. Without that, clicking through
+    # a page of results would queue a download for every row. Nothing is
+    # prefetched for a study over the cap, since it can never be loaded, and
+    # nothing is prefetched while a load is running, so the prefetch worker and
+    # the load worker never write BiocFileCache at the same time.
+    observeEvent(selected_row(), ignoreNULL = FALSE, {
+      old <- prefetch()
+      if (!is.null(old)) {
+        try(mirai::stop_mirai(old), silent = TRUE)
+        prefetch(NULL)
+      }
+      row <- selected_row()
+      if (is.null(row) || identical(load_task$status(), "running")) {
+        return()
+      }
+      if (!is.null(study_load_block(row))) {
+        return()
+      }
+      prefetch(mirai::mirai(
+        prefetch_study_files(proj_info),
+        prefetch_study_files = prefetch_study_files,
+        recount3_counts_url = recount3_counts_url,
+        .args = list(proj_info = catalog_proj_info(row)),
+        .compute = "prefetch"
+      ))
+    })
 
     # Download and log2 CPM both run on the daemon. mirai evaluates in a clean
     # process, so the two logic functions travel with the call and already
@@ -304,10 +377,28 @@ study_browser_server <- function(id) {
         showNotification("Select a study in the table first.", type = "warning")
         return()
       }
+      # The hidden button is not the guard. Anything can send this input, and
+      # a study over the cap would take the server down with it.
+      blocked <- study_load_block(row)
+      if (!is.null(blocked)) {
+        showNotification(
+          paste(blocked$reason, blocked$detail),
+          type = "error",
+          duration = 12
+        )
+        return()
+      }
       # create_rse() reaches match.arg() through annotation_options(), and
       # match.arg() rejects a factor. catalog_proj_info() rebuilds the row as
       # plain character columns and restores the dropped project_type.
       info <- catalog_proj_info(row)
+      # Stop any warm-up first. Whatever it already finished stays in the
+      # cache, and the load picks up from there.
+      running <- prefetch()
+      if (!is.null(running)) {
+        try(mirai::stop_mirai(running), silent = TRUE)
+        prefetch(NULL)
+      }
       pending(info)
       load_task$invoke(info)
       showNotification(

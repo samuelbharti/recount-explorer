@@ -18,3 +18,16 @@ labelled_counts <- function(values, column) {
   )
   stats::setNames(values, labels)
 }
+
+# Turn a "10-50" or "200-Inf" preset into a range. "any" means no bound.
+preset_range <- function(preset) {
+  preset <- preset %||% "any"
+  if (identical(preset, "any")) {
+    return(list(min = NULL, max = NULL))
+  }
+  parts <- strsplit(preset, "-", fixed = TRUE)[[1L]]
+  list(
+    min = as.numeric(parts[[1L]]),
+    max = if (identical(parts[[2L]], "Inf")) NULL else as.numeric(parts[[2L]])
+  )
+}

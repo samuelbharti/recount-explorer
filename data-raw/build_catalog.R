@@ -19,6 +19,9 @@
 #      studies carry study_title and study_abstract in their metadata files.
 #   3. A direct fetch from the recount3 metadata files, for whatever is left.
 #
+# A second pass then records the download size of each study with a HEAD
+# request, so the app can say what a study costs before anyone clicks.
+#
 # Without an export in data-raw/ the script falls back to step 3 for every
 # study. That takes 20 to 40 minutes. With an export it takes about a minute.
 
@@ -239,6 +242,158 @@ if (!is.null(fetched)) {
       collapse = " "
     )
   )
+}
+
+# ---- 5b. record the download size of each study ------------------------------
+
+# A HEAD request for each study, so the catalog can say what a study costs
+# before anyone clicks. The body is never transferred, so this pass moves a few
+# kilobytes of headers rather than the 79 GB the counts files add up to.
+#
+# Its own parts directory, so adding this pass does not invalidate the title
+# and abstract work already on disk.
+
+size_parts <- paste0(parts_dir, "-size")
+dir.create(size_parts, showWarnings = FALSE, recursive = TRUE)
+
+size_done <- read_parts(size_parts)
+size_todo <- projects
+if (!is.null(size_done)) {
+  settled <- size_done$uid[!is.na(size_done$download_mb)]
+  say("resume: ", length(settled), " sizes already recorded")
+  size_todo <- size_todo[!size_todo$uid %in% settled, , drop = FALSE]
+}
+if (limit > 0L && nrow(size_todo) > limit) {
+  size_todo <- size_todo[seq_len(limit), , drop = FALSE]
+}
+say("sizes to record:", nrow(size_todo))
+
+# Learn the storage prefix and prove the shortcut agrees with locate_url
+# before trusting it on 19,000 studies. Falling back is slower but correct.
+fast_base <- NULL
+if (nrow(size_todo) > 0L) {
+  sample_url <- recount3_counts_url(
+    projects$project[1],
+    projects$project_home[1],
+    projects$organism[1]
+  )
+  fast_base <- recount3_storage_base(sample_url)
+  if (!is.null(fast_base) && verify_fast_urls(projects, fast_base, n = 3L)) {
+    say("fast size lookup verified, base:", fast_base)
+  } else {
+    say("fast size lookup did not verify, falling back to locate_url")
+    fast_base <- NULL
+  }
+}
+
+if (nrow(size_todo) > 0L) {
+  size_chunks <- split(
+    size_todo,
+    ceiling(seq_len(nrow(size_todo)) / chunk_size)
+  )
+  stamp <- format(started, "%Y%m%d%H%M%S")
+  for (k in seq_along(size_chunks)) {
+    size_chunks[[k]]$chunk_id <- sprintf("size-%s-%05d", stamp, k)
+  }
+  say(
+    "HEAD requests in",
+    length(size_chunks),
+    "chunks over",
+    workers,
+    "workers"
+  )
+
+  mirai::daemons(workers)
+  on.exit(mirai::daemons(0), add = TRUE)
+  mirai::everywhere({
+    options(timeout = 120)
+    suppressMessages(invisible(recount3::project_homes("human")))
+    suppressMessages(invisible(recount3::project_homes("mouse")))
+  })
+
+  size_chunk <- function(chunk, parts_dir, pause, base) {
+    # One handle for the whole chunk, so the TLS handshake is paid once rather
+    # than once for each study.
+    handle <- if (is.null(base)) {
+      NULL
+    } else {
+      curl::new_handle(
+        nobody = TRUE,
+        followlocation = FALSE,
+        timeout = 30,
+        connecttimeout = 15L,
+        useragent = "recount-explorer catalog build (R)"
+      )
+    }
+    mb <- vapply(
+      seq_len(nrow(chunk)),
+      function(i) {
+        v <- if (is.null(base)) {
+          study_download_mb(
+            chunk$project[i],
+            chunk$project_home[i],
+            chunk$organism[i]
+          )
+        } else {
+          content_length_mb(
+            recount3_counts_url_fast(
+              chunk$project[i],
+              chunk$project_home[i],
+              chunk$organism[i],
+              base
+            ),
+            handle
+          )
+        }
+        Sys.sleep(pause)
+        v
+      },
+      numeric(1)
+    )
+    df <- data.frame(
+      uid = chunk$uid,
+      download_mb = mb,
+      stringsAsFactors = FALSE
+    )
+
+    f <- file.path(parts_dir, sprintf("part-%s.rds", chunk$chunk_id[1L]))
+    tmp <- paste0(f, ".tmp")
+    saveRDS(df, tmp, compress = "gzip")
+    if (!file.rename(tmp, f)) {
+      file.copy(tmp, f, overwrite = TRUE)
+      unlink(tmp)
+    }
+    c(n = nrow(df), ok = sum(!is.na(mb)))
+  }
+
+  # Through `...`, not `.args`: mirai puts these in the daemon global
+  # environment, which is what the nested calls inside size_chunk() resolve
+  # against.
+  invisible(mirai::mirai_map(
+    .x = size_chunks,
+    .f = size_chunk,
+    study_download_mb = study_download_mb,
+    recount3_counts_url = recount3_counts_url,
+    recount3_counts_url_fast = recount3_counts_url_fast,
+    recount3_annotation_code = recount3_annotation_code,
+    content_length_mb = content_length_mb,
+    .args = list(parts_dir = size_parts, pause = pause, base = fast_base)
+  )[mirai::.progress])
+
+  mirai::daemons(0)
+  say("size pass finished")
+}
+
+size_all <- read_parts(size_parts)
+if (!is.null(size_all)) {
+  i <- match(projects$uid, size_all$uid)
+  projects$download_mb <- size_all$download_mb[i]
+  say(sprintf(
+    "sizes recorded for %d of %d studies (%.1f%%)",
+    sum(!is.na(projects$download_mb)),
+    nrow(projects),
+    100 * mean(!is.na(projects$download_mb))
+  ))
 }
 
 # ---- 6. fall back, finalize, write ------------------------------------------

@@ -22,7 +22,28 @@ for (f in list.files("R", pattern = "[.][Rr]$", full.names = TRUE)) {
 # never blocks this process. Two daemons: two studies can load at once across
 # sessions, and further requests queue.
 mirai::daemons(2)
-onStop(function() mirai::daemons(0))
+
+# Prefetching gets its own pool with a single worker, so warming a study the
+# user is only reading about can never take a slot from a study they asked for.
+mirai::daemons(1, .compute = "prefetch")
+
+onStop(function() {
+  mirai::daemons(0)
+  mirai::daemons(0, .compute = "prefetch")
+})
+
+# The gene annotation is shared by every study of one organism and is 1.8 MB.
+# Fetching both once at startup takes a step off every first study load. Fire
+# and forget on the prefetch worker, so it never delays the app coming up.
+local({
+  m <- mirai::mirai(
+    prefetch_annotations(),
+    prefetch_annotations = prefetch_annotations,
+    .compute = "prefetch"
+  )
+  # Held only so it is not collected before it resolves.
+  assign(".annotation_warmup", m, envir = globalenv())
+})
 
 # Read the catalog and warm the search text once at startup rather than on the
 # first keystroke. Building the search text costs about half a second.
