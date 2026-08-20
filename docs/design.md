@@ -141,7 +141,7 @@ flowchart LR
 ## Architecture
 
 The interface is bslib, which is Bootstrap 5 with an R API. Every part of it is
-R code, so a contributor can change a filter or a layout and reload, with no
+R code. A contributor can change a filter or a layout and reload, with no
 JavaScript toolchain and no build step. That was a deliberate choice: this is a
 tool meant for other people to use and contribute to, and most of them write R.
 
@@ -195,13 +195,88 @@ the right. The right pane is a bslib sidebar rather than a card under the
 table, so reading an abstract never pushes the results off the screen.
 
 Filtering happens in R through `catalog_search()`, not in DataTables. That
-keeps one source of truth for what the user asked for, and it lets the search
-box cover abstract text that the table never shows.
+keeps one source of truth for what the user asked for. It also lets the
+search box cover abstract text that the table never shows.
 
 The cost of that choice is one trap. `input$catalog_rows_selected` indexes the
-frame that was last rendered, so when the filters change the index can outlive
+frame that was last rendered. When the filters change, the index can outlive
 the data it referred to and resolve to a different study. The browser module
 clears the selection on every filter change, which closes that window.
+
+## What a study costs
+
+recount3 stores one gzipped genes-by-samples file for each study. There is no
+way to ask for less of it. The `sample` argument to `locate_url()` is ignored
+for gene counts and returns the whole-study URL. The server does send
+`Accept-Ranges: bytes`, but gzip has no row addressing, so byte ranges select
+nothing useful. Only BigWig files are per sample, and those are coverage
+tracks rather than counts.
+
+So the download unit is the study. The only honest response is to say what it
+costs and to refuse what exhausts the server.
+
+| Study | Samples | Download | Memory |
+| --- | --- | --- | --- |
+| DRP000425 | 4 | 0.7 MB | 8 MB |
+| ERP112751 | 100 | 10 MB | 194 MB |
+| BRCA (TCGA) | 1,256 | 131 MB | 2.4 GB |
+| BRAIN (GTEx) | 2,931 | 296 MB | 5.6 GB |
+| SRP150473 (mouse) | 28,706 | 1,014 MB | 48 GB |
+
+Downloads run at about 100 KB for each sample. Memory is the harder wall, at a
+measured 30.4 bytes for each gene in each sample. A study becomes unloadable
+long before it becomes slow to fetch.
+
+The catalog records the real size of every study, taken with a HEAD request at
+build time. The app shows it before anyone clicks, and the filter uses it. The
+whole catalog comes to 50.3 GB. Even so, 18,323 of the 18,998 studies are
+under 10 MB, and only four are over 200 MB.
+
+The cap is 500 samples, about 1 GB of peak memory. It allows 18,760 studies,
+98.7 percent of the catalog. It stops the 238 that put a server under real
+pressure. `RECOUNT_EXPLORER_MAX_SAMPLES` moves it.
+
+The refusal carries the numbers. A message that says "too large" and stops
+there tells the reader nothing about what to do next. The pane names the
+sample count, the limit, the download, the memory, and the variable that
+raises it. The server checks the limit as well as the interface, because hiding a
+button stops nobody.
+
+### Prefetching
+
+About 70 percent of a cold load is download. A warm load is 3 to 4 seconds
+whatever the study size, so anything already in BiocFileCache loads quickly.
+
+`prefetch_study_files()` fetches exactly what `create_rse()` needs: the
+metadata files, the shared annotation and the counts file. It runs in three
+places. The app warms the shared annotation at startup, 1.8 MB for each
+organism, which takes a step off every first load. It warms the selected study
+while the reader is on its abstract. It cancels the previous warm-up first, so
+clicking through a page of results does not queue a download for every row.
+And `data-raw/prefetch_studies.R` warms a chosen set before a demo.
+
+Prefetching has its own mirai pool with a single worker. Warming a study
+somebody is only reading about can never take a slot from a study they asked
+for. A load stops any warm-up first, so the two never write BiocFileCache at
+the same time.
+
+### Making the size pass affordable
+
+Recording 19,000 sizes looked like a four hour job. Two measurements changed
+that. `locate_url()` costs 0.39 seconds a study. The documented `http://`
+address answers with a 301 to `https://`, which answers with a 302 to S3. Each
+HEAD therefore cost about 0.9 seconds.
+
+The build resolves that redirect once and learns the storage prefix from it.
+It learns the annotation code from one `locate_url()` call for each organism.
+It then builds the rest of the URLs itself. That is 0.06 seconds a study, and the whole
+pass takes about four minutes.
+
+Neither shortcut is written down. Both are learned at run time, so they follow
+recount3 if it moves. `verify_fast_urls()` checks the constructed URLs against
+`locate_url()` for every organism and source before the pass starts. If
+they disagree the build falls back to the slow path rather than recording
+19,000 wrong numbers.
 
 ## Startup cost
 

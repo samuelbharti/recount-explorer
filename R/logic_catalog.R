@@ -6,7 +6,7 @@
 # all of them costs about 19,000 HTTP requests, so a build script does it once
 # and writes data/recount3_catalog.rds. See data-raw/build_catalog.R.
 
-CATALOG_SCHEMA_VERSION <- 1L
+CATALOG_SCHEMA_VERSION <- 2L
 
 CATALOG_COLUMNS <- c(
   "uid",
@@ -15,6 +15,7 @@ CATALOG_COLUMNS <- c(
   "file_source",
   "project_home",
   "n_samples",
+  "download_mb",
   "study_title",
   "study_abstract"
 )
@@ -243,6 +244,10 @@ finalize_catalog <- function(df, origin = "build", built_at = Sys.time()) {
   # Normalize the study text here rather than at each source. Titles arrive
   # from a CSV export, from curated text, and from the metadata files, and all
   # three have to end up in the same shape.
+  if (is.null(df$download_mb)) {
+    df$download_mb <- NA_real_
+  }
+  df$download_mb <- as.numeric(df$download_mb)
   df$study_title <- mark_utf8(strip_markup(as.character(df$study_title)))
   df$study_abstract <- mark_utf8(strip_markup(as.character(df$study_abstract)))
   df$study_title <- trimws(gsub("[[:space:]]{2,}", " ", df$study_title))
@@ -340,6 +345,30 @@ CATALOG_TABLE_COLUMNS <- c(
   "n_samples",
   "study_title"
 )
+
+# Download size in MB for every row, falling back to the per-sample estimate
+# where the catalog has no recorded value.
+catalog_download_mb <- function(df) {
+  mb <- suppressWarnings(as.numeric(df$download_mb))
+  missing <- is.na(mb) | mb <= 0
+  mb[missing] <- as.numeric(df$n_samples[missing]) * KB_PER_SAMPLE / 1e3
+  mb
+}
+
+# The frame the results table renders: the stored columns plus a readable
+# size, in the order the table shows them.
+catalog_display <- function(df) {
+  out <- df[, CATALOG_TABLE_COLUMNS, drop = FALSE]
+  out$download <- vapply(catalog_download_mb(df), format_size_mb, character(1))
+  out[, c(
+    "project",
+    "organism",
+    "file_source",
+    "n_samples",
+    "download",
+    "study_title"
+  )]
+}
 
 # Sorted source names for the filter control, so a new recount3 source appears
 # on its own rather than after someone edits a hardcoded list.
@@ -480,4 +509,282 @@ catalog_page <- function(results, page = 1L, page_size = 25L) {
     from = if (n == 0L) 0L else from,
     to = to
   )
+}
+
+# ---- study files -------------------------------------------------------------
+
+# URL of the gene counts file for one study. This is the big one: everything
+# else recount3 fetches for a study is metadata measured in kilobytes.
+recount3_counts_url <- function(
+  project,
+  project_home,
+  organism,
+  recount3_url = getOption("recount3_url", "http://duffel.rail.bio/recount3")
+) {
+  urls <- recount3::locate_url(
+    project = project,
+    project_home = project_home,
+    type = "gene",
+    organism = organism,
+    recount3_url = recount3_url
+  )
+  unname(urls[[1L]])
+}
+
+# Size of the gene counts file, in MB, without downloading it.
+#
+# nobody = TRUE makes this a HEAD request, so the server answers with headers
+# and no body. Returns NA when the server gives no Content-Length rather than
+# guessing, so the caller can tell a real size from a fallback.
+study_download_mb <- function(
+  project,
+  project_home,
+  organism,
+  timeout = 30
+) {
+  url <- tryCatch(
+    recount3_counts_url(project, project_home, organism),
+    error = function(e) NULL
+  )
+  if (is.null(url)) {
+    return(NA_real_)
+  }
+  handle <- curl::new_handle(
+    nobody = TRUE,
+    followlocation = TRUE,
+    timeout = timeout,
+    connecttimeout = 15L,
+    useragent = "recount-explorer catalog build (R)"
+  )
+  res <- tryCatch(
+    curl::curl_fetch_memory(url, handle = handle),
+    error = function(e) NULL
+  )
+  if (is.null(res)) {
+    return(NA_real_)
+  }
+  headers <- rawToChar(res$headers)
+  match <- regmatches(
+    headers,
+    regexpr("(?i)content-length:[[:space:]]*[0-9]+", headers, perl = TRUE)
+  )
+  if (!length(match)) {
+    return(NA_real_)
+  }
+  as.numeric(gsub("[^0-9]", "", match[[1L]])) / 1e6
+}
+
+# Warm the BiocFileCache entries that create_rse() needs, so the load itself
+# finds everything on disk.
+#
+# create_rse() fetches exactly three things for a gene-level study: the
+# metadata files, the annotation shared by every study of that organism, and
+# the study counts file. Fetching them here rather than letting create_rse() do
+# it is what allows the progress reporting: the caller sees three named steps
+# instead of one opaque call.
+#
+# `on_stage(step, total, label)` is called before each step when supplied.
+prefetch_study_files <- function(proj_info, on_stage = NULL) {
+  stopifnot(is.data.frame(proj_info), nrow(proj_info) == 1L)
+  organism <- as.character(proj_info$organism)
+  bfc <- recount3::recount3_cache()
+
+  step <- function(i, label) {
+    if (is.function(on_stage)) {
+      on_stage(i, 3L, label)
+    }
+  }
+
+  step(1L, "Fetching study metadata")
+  meta_urls <- recount3::locate_url(
+    project = proj_info$project,
+    project_home = proj_info$project_home,
+    type = "metadata",
+    organism = organism
+  )
+  for (url in meta_urls) {
+    recount3::file_retrieve(url = url, bfc = bfc, verbose = FALSE)
+  }
+
+  step(2L, "Fetching the gene annotation")
+  recount3::file_retrieve(
+    url = recount3::locate_url_ann(type = "gene", organism = organism),
+    bfc = bfc,
+    verbose = FALSE
+  )
+
+  step(3L, "Downloading the counts")
+  recount3::file_retrieve(
+    url = recount3_counts_url(
+      proj_info$project,
+      proj_info$project_home,
+      organism
+    ),
+    bfc = bfc,
+    verbose = FALSE
+  )
+
+  invisible(TRUE)
+}
+
+# The annotation is shared by every study of one organism and is only 1.8 MB.
+# Fetching it once at startup takes a step off every first study load.
+prefetch_annotations <- function(organisms = c("human", "mouse")) {
+  bfc <- recount3::recount3_cache()
+  for (organism in organisms) {
+    tryCatch(
+      recount3::file_retrieve(
+        url = recount3::locate_url_ann(type = "gene", organism = organism),
+        bfc = bfc,
+        verbose = FALSE
+      ),
+      error = function(e) NULL
+    )
+  }
+  invisible(TRUE)
+}
+
+# ---- fast size lookup --------------------------------------------------------
+
+# Everything below exists to make the build's HEAD pass affordable. Measured:
+# locate_url() costs 0.39 s a study, and the documented http:// address answers
+# with a 301 to https:// which answers with a 302 to S3, so each HEAD costs
+# about 0.9 s. Together that is four hours for the whole catalog. Resolving the
+# redirect once and building the URL by hand takes it to about six minutes.
+#
+# Neither shortcut is hardcoded. The storage prefix is learned by following one
+# redirect, and the annotation code by making one locate_url() call for each
+# organism, so both follow recount3 if it moves.
+
+# The prefix that the recount3 address redirects to, learned once.
+recount3_storage_base <- local({
+  cached <- NULL
+  function(sample_url) {
+    if (!is.null(cached)) {
+      return(cached)
+    }
+    handle <- curl::new_handle(nobody = TRUE, followlocation = TRUE)
+    res <- tryCatch(
+      curl::curl_fetch_memory(sample_url, handle = handle),
+      error = function(e) NULL
+    )
+    if (is.null(res) || !nzchar(res$url)) {
+      return(NULL)
+    }
+    marker <- "/recount3/"
+    at <- regexpr(marker, sample_url, fixed = TRUE)
+    if (at < 0) {
+      return(NULL)
+    }
+    tail_path <- substring(sample_url, at + nchar(marker))
+    if (!endsWith(res$url, tail_path)) {
+      return(NULL)
+    }
+    cached <<- substring(res$url, 1, nchar(res$url) - nchar(tail_path))
+    cached
+  }
+})
+
+# The annotation code in a counts filename, G026 for human and M023 for mouse.
+# Read from a real URL rather than written down, once for each organism.
+recount3_annotation_code <- local({
+  cached <- list()
+  function(organism, project_home) {
+    key <- as.character(organism)
+    if (!is.null(cached[[key]])) {
+      return(cached[[key]])
+    }
+    url <- recount3_counts_url("PLACEHOLDER", project_home, organism)
+    # The filename is <source>.gene_sums.<project>.<annotation>.gz, so the
+    # annotation is the second field from the end. Split rather than match, to
+    # keep this readable.
+    parts <- rev(strsplit(basename(url), ".", fixed = TRUE)[[1L]])
+    code <- parts[[2L]]
+    cached[[key]] <<- code
+    code
+  }
+})
+
+# Build the counts URL without calling locate_url().
+#
+# The layout is <base><organism>/<project_home>/gene_sums/<shard>/<project>/
+# <source>.gene_sums.<project>.<annotation>.gz, where the shard is the last two
+# characters of the accession. Verified against locate_url() for every
+# organism and source combination in the catalog.
+recount3_counts_url_fast <- function(project, project_home, organism, base) {
+  code <- recount3_annotation_code(organism, project_home)
+  source <- basename(project_home)
+  shard <- substring(project, nchar(project) - 1L)
+  paste0(
+    base,
+    organism,
+    "/",
+    project_home,
+    "/gene_sums/",
+    shard,
+    "/",
+    project,
+    "/",
+    source,
+    ".gene_sums.",
+    project,
+    ".",
+    code,
+    ".gz"
+  )
+}
+
+# Size in MB from a URL that needs no redirect. Returns NA when the server
+# sends no Content-Length, so a fallback stays distinguishable from a real
+# measurement.
+content_length_mb <- function(url, handle) {
+  res <- tryCatch(
+    curl::curl_fetch_memory(url, handle = handle),
+    error = function(e) NULL
+  )
+  if (is.null(res) || res$status_code >= 300) {
+    return(NA_real_)
+  }
+  headers <- rawToChar(res$headers)
+  match <- regmatches(
+    headers,
+    regexpr("(?i)content-length:[[:space:]]*[0-9]+", headers, perl = TRUE)
+  )
+  if (!length(match)) {
+    return(NA_real_)
+  }
+  as.numeric(gsub("[^0-9]", "", match[[1L]])) / 1e6
+}
+
+# Prove the shortcut agrees with locate_url() before trusting it on 19,000
+# studies. Returns TRUE only when every sampled URL matches.
+verify_fast_urls <- function(catalog, base, n = 2L) {
+  combos <- unique(catalog[, c("organism", "project_home")])
+  for (i in seq_len(nrow(combos))) {
+    rows <- catalog[
+      catalog$organism == combos$organism[i] &
+        catalog$project_home == combos$project_home[i],
+      ,
+      drop = FALSE
+    ]
+    for (j in seq_len(min(n, nrow(rows)))) {
+      slow <- recount3_counts_url(
+        rows$project[j],
+        rows$project_home[j],
+        rows$organism[j]
+      )
+      fast <- recount3_counts_url_fast(
+        rows$project[j],
+        rows$project_home[j],
+        rows$organism[j],
+        base = ""
+      )
+      marker <- "/recount3/"
+      at <- regexpr(marker, slow, fixed = TRUE)
+      if (!identical(substring(slow, at + nchar(marker)), fast)) {
+        return(FALSE)
+      }
+    }
+  }
+  TRUE
 }

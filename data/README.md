@@ -12,8 +12,9 @@ at startup, so the catalog appears at once and needs no network.
 | Studies | 18,998 |
 | Human | 8,882 across sra, gtex, tcga, ANSWER_ALS, ega, LIBD, TARGET_ALS |
 | Mouse | 10,116, all sra |
-| With an abstract | 18,825 (99.1%) |
-| Size | 4.3 MB, xz compressed |
+| With an abstract | 18,819 (99.1%) |
+| With a recorded download size | 18,998 (100%) |
+| Size | 4.4 MB, xz compressed |
 | Load time | about 0.15 s |
 
 `recount3_catalog_meta.json` holds the same provenance in readable form, so a
@@ -32,8 +33,14 @@ provenance.
 | `file_source` | character | `sra`, `gtex`, `tcga`, and four smaller sources. |
 | `project_home` | character | Needed by `recount3::create_rse()`. |
 | `n_samples` | integer | |
+| `download_mb` | double | Size of the gene counts file, from a HEAD request. |
 | `study_title` | character | Never empty. |
 | `study_abstract` | character | Empty string when recount3 has none. |
+
+`download_mb` is what lets the app say what a study costs before anyone clicks,
+and lets you filter by size. The build records it with a HEAD request for each
+study, so the bodies are never transferred. Across the catalog the counts come
+to 50.3 GB, and 18,323 of the 18,998 studies are under 10 MB.
 
 Two details are load bearing.
 
