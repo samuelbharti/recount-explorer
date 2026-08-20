@@ -4,9 +4,10 @@ test_that("the palette differs between light and dark", {
 
   expect_false(identical(light$bg, dark$bg))
   expect_false(identical(light$fg, dark$fg))
-  # A dark background with dark text would be worse than not theming at all.
-  expect_equal(light$bg, "#ffffff")
-  expect_true(startsWith(dark$bg, "#1"))
+  # Asserted against the brand rather than a fixed hex, because _brand.yml is
+  # the source of truth and a palette change should not break this test.
+  expect_equal(light$bg, brand_plot_palette(FALSE)$bg)
+  expect_equal(dark$bg, brand_plot_palette(TRUE)$bg)
 })
 
 test_that("every builder paints its background for the mode it is given", {
@@ -34,10 +35,11 @@ test_that("every builder paints its background for the mode it is given", {
 })
 
 test_that("the builders default to light, which is what a PDF wants", {
-  # A figure going into a document should not carry a dark background, so the
+  # A figure going into a document belongs on a light background, so the
   # download handlers rely on this default rather than the screen mode.
   qc <- data.frame(library_size = 1e6, detected_genes = 100)
+  light_bg <- brand_plot_palette(FALSE)$bg
 
-  expect_equal(plot_qc(qc)$theme$plot.background$fill, "#ffffff")
-  expect_equal(plot_pca_scree(c(0.5))$theme$plot.background$fill, "#ffffff")
+  expect_equal(plot_qc(qc)$theme$plot.background$fill, light_bg)
+  expect_equal(plot_pca_scree(c(0.5))$theme$plot.background$fill, light_bg)
 })

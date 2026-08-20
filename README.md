@@ -35,6 +35,17 @@ The interface follows your system light or dark setting, and there is a toggle
 in the navigation bar. The plots follow it too. A downloaded PDF stays light. A
 figure going into a document belongs on a white background.
 
+## Theme
+
+Colours live in [`_brand.yml`](_brand.yml), in the
+[brand.yml](https://posit-dev.github.io/brand-yml/) format. bslib reads it to
+build the Bootstrap theme. `R/logic_brand.R` reads the same file for the
+ggplot2 figures. The buttons, the tables and the plots always agree.
+
+The palette is coffee: roasted browns on cream, with caramel in place of the
+usual Bootstrap blue. To try another palette, edit that file, or point
+`RECOUNT_EXPLORER_BRAND` at a different one.
+
 ## Run it
 
 ```r

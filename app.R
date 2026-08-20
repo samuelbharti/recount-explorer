@@ -62,16 +62,16 @@ local({
   }
 })
 
-# System fonts rather than font_google(). Google Fonts would add two requests
-# to a third party host on every page load, and would leave the app looking
-# wrong on a machine with no outbound network. The system stack renders
-# immediately and matches the host operating system.
-app_theme <- bs_theme(
-  version = 5,
-  primary = "#2f6feb",
-  "border-radius" = "0.5rem",
-  "card-cap-bg" = "transparent"
-)
+# The palette lives in _brand.yml, which bslib finds on its own. Keeping it
+# there rather than in this call means the ggplot2 figures can read the same
+# file, so the interface and the plots cannot drift apart. brand = TRUE rather
+# than the default NULL, so a missing or broken brand file fails loudly here
+# instead of quietly falling back to stock Bootstrap blue.
+#
+# Fonts stay on the system stack. Google Fonts would add two requests to a
+# third party on every page load and leave the app looking wrong with no
+# outbound network.
+app_theme <- bs_theme(version = 5, brand = TRUE)
 
 ui <- page_navbar(
   title = "Recount Explorer",
