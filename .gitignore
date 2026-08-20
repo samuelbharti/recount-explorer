@@ -32,8 +32,9 @@ data-raw/*.csv
 node_modules/
 .vite/
 
-# Deployment
+# Deployment: local records of what was deployed where, never source.
 rsconnect/
+.posit/
 
 # Misc
 .DS_Store
