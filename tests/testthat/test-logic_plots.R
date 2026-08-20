@@ -44,7 +44,7 @@ test_that("the builders default to light, which is what a PDF wants", {
   expect_equal(plot_pca_scree(c(0.5))$theme$plot.background$fill, light_bg)
 })
 
-test_that("a grouping column with more levels than named colours still builds", {
+test_that("a grouping column with more levels than the palette still builds", {
   # The reported bug: metadata_group_choices() offers up to 30 levels and
   # scale_fill_manual had only 8 values, so ggplot2 threw "Insufficient values
   # in manual scale" and Shiny painted a red block over the card. The plot is
@@ -145,7 +145,7 @@ test_that("a quality builder given nothing draws the reason, not an error", {
   }
 })
 
-test_that("labelling names every point when there are few and trims when many", {
+test_that("labelling names every point when few, trims when there are many", {
   few <- data.frame(
     library_size = c(1e6, 2e6, 3e6),
     detected_genes = c(100, 200, 300),
@@ -221,7 +221,7 @@ test_that("font size reaches every builder's theme", {
   }
 })
 
-test_that("font size defaults to 21, the size found legible on a plot-heavy page", {
+test_that("font size defaults to 21, found legible on a plot-heavy page", {
   qc <- data.frame(library_size = 1e6, detected_genes = 100)
 
   expect_equal(plot_qc(qc)$theme$text$size, 21)
@@ -262,7 +262,7 @@ test_that("safe_plot forwards font size to the error message it draws", {
   expect_equal(built$layers[[1]]$aes_params$size, 22 / 14 * 4.5)
 })
 
-test_that("facet strip text follows the theme instead of theme_minimal()'s fixed grey", {
+test_that("facet strip text follows the theme, not theme_minimal()'s grey", {
   # theme_minimal() sets strip.text to a fixed dark colour rather than
   # inheriting `text`, so without an explicit override the quality metrics
   # panel's facet titles stayed near-black and disappeared on a dark page.
