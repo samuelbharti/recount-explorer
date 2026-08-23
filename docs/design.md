@@ -127,6 +127,10 @@ flowchart LR
   source archive.
 - **Study overview**: The headline numbers, a table of the sample metadata, and
   a quality plot of library size against detected genes.
+- **Quality**: The checks built from data the study already carries: a metric
+  panel of what recount3 measured during alignment, library composition by
+  gene biotype, a donor sex scatter from chromosome X and Y reads, and a
+  sample correlation heatmap.
 - **Gene explorer**: Server-side gene search. The app draws a boxplot or a
   violin plot of the expression. You can split the plot by any categorical
   metadata column.
@@ -152,16 +156,19 @@ flowchart TD
     app["app.R: page layout and wiring"]
     app --> browser["mod_study_browser<br/>returns the study reactive"]
     app --> overview["mod_study_overview"]
+    app --> quality["mod_quality"]
     app --> gene["mod_gene_explorer"]
     app --> pca["mod_pca_explorer"]
     app --> export["mod_export"]
     browser --> logic0["logic_catalog.R<br/>snapshot and search"]
     browser --> logic1["logic_recount.R<br/>load and log2 CPM"]
     overview --> logic2["logic_analysis.R<br/>QC, PCA, expression"]
+    quality --> logic2
     gene --> logic2
     pca --> logic2
     export --> logic3["logic_export.R<br/>script and CSV frames"]
-    gene --> logic4["logic_plots.R"]
+    quality --> logic4["logic_plots.R"]
+    gene --> logic4
     pca --> logic4
     overview --> logic4
 ```
@@ -410,4 +417,3 @@ fixture in `tests/testthat/fixtures/` instead.
   Add a sample limit or disk-backed storage before the app shows them first.
 - Differential expression between two metadata groups.
 - A heatmap of the genes with the highest variance.
-- A deployment target.
