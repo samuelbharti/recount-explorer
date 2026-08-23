@@ -113,7 +113,8 @@ R/
   mod_export.R           Data downloads and reproduction script
   utils.R                Small helpers
 tests/testthat/          Logic and module tests. They use a fixture, never the network
-www/app.css              Styles for the stat tiles and the spacing
+www/app.css              Navbar, card and footer theming, the tour, and the
+                         stat tiles and spacing bslib has no opinion on
 docs/design.md           Architecture and design notes
 ```
 
