@@ -14,6 +14,7 @@ repository-code: "https://github.com/samuelbharti/recount-explorer"
 url: "https://github.com/samuelbharti/recount-explorer"
 license: MIT
 version: 0.1.1
+doi: 10.5281/zenodo.22067236
 keywords:
   - RNA-seq
   - recount3
