@@ -36,6 +36,10 @@ jobs:
 
       - uses: r-lib/actions/setup-r@v2
         with:
+          # R 4.5 and Bioconductor 3.21, which P3M serves as binaries. On R 4.6
+          # the runner builds Bioconductor 3.22 from source, and S4Vectors 0.48.1
+          # compiles but fails to load. Move the pin when 3.22 has binaries.
+          r-version: "4.5"
           use-public-rspm: true
 
       # Dependencies come from DESCRIPTION rather than renv.lock. Restoring
