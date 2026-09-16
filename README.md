@@ -1,6 +1,7 @@
 # Recount Explorer
 
 <!-- badges: start -->
+[![Live app](https://img.shields.io/badge/app-live-brightgreen)](https://01a02060-c94e-1f30-af4d-fd85cf525b11.share.connect.posit.cloud)
 [![lint](https://github.com/samuelbharti/recount-explorer/actions/workflows/lint.yml/badge.svg)](https://github.com/samuelbharti/recount-explorer/actions/workflows/lint.yml)
 [![test](https://github.com/samuelbharti/recount-explorer/actions/workflows/test.yml/badge.svg)](https://github.com/samuelbharti/recount-explorer/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/samuelbharti/recount-explorer/blob/main/LICENSE)
@@ -14,6 +15,10 @@ the same way. The samples come from SRA, GTEx, TCGA, and four smaller sources.
 
 You select a study from the catalog. The app loads that study through the
 recount3 API and draws the plots. You write no code.
+
+**[Open the app](https://01a02060-c94e-1f30-af4d-fd85cf525b11.share.connect.posit.cloud)**
+to try it with nothing installed. It runs on Posit Connect Cloud. To run it
+yourself instead, see [Usage](#usage) below.
 
 ## Views
 
