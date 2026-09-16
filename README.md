@@ -1,9 +1,11 @@
 # Recount Explorer
 
+<!-- badges: start -->
 [![lint](https://github.com/samuelbharti/recount-explorer/actions/workflows/lint.yml/badge.svg)](https://github.com/samuelbharti/recount-explorer/actions/workflows/lint.yml)
 [![test](https://github.com/samuelbharti/recount-explorer/actions/workflows/test.yml/badge.svg)](https://github.com/samuelbharti/recount-explorer/actions/workflows/test.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/samuelbharti/recount-explorer/blob/main/LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22067235-1682D4)](https://doi.org/10.5281/zenodo.22067235)
+<!-- badges: end -->
 
 Recount Explorer is a Shiny app that shows RNA-seq studies from the
 [recount3](https://bioconductor.org/packages/recount3/) project. recount3 holds
@@ -60,7 +62,7 @@ The palette is coffee: roasted browns on cream, with caramel in place of the
 usual Bootstrap blue. To try another palette, edit that file, or point
 `RECOUNT_EXPLORER_BRAND` at a different one.
 
-## Run it
+## Usage
 
 ```r
 install.packages("renv")
@@ -96,7 +98,7 @@ Rscript data-raw/prefetch_studies.R --max-samples 50 --limit 20 --dry-run
 Rscript data-raw/prefetch_studies.R SRP107565 DRP000425
 ```
 
-## Structure
+## Repository layout
 
 ```
 app.R                    App layer: page layout, mirai daemons, module wiring
@@ -106,16 +108,20 @@ R/
   logic_analysis.R       QC, PCA, quality metrics, per-gene frames (Shiny-free)
   logic_plots.R          Plot builders shared by views and PDF downloads (Shiny-free)
   logic_export.R         Reproduction script builder, CSV export frames (Shiny-free)
+  logic_notebook.R       The reproduction session as a Quarto or R Markdown notebook
+  logic_limits.R         What a study costs, and where the app draws the line
+  logic_brand.R          The brand, read from _brand.yml
   mod_study_browser.R    Catalog browsing, background load, returns the study reactive
   mod_study_overview.R   Study header, QC and distribution plots, metadata table
   mod_quality.R          Quality metrics, biotypes, donor sex, sample correlation
   mod_gene_explorer.R    Per-gene expression by group, plot PDF download
   mod_pca_explorer.R     Sample-level PCA and gene loadings, plot PDF downloads
   mod_export.R           Data downloads and reproduction script
+  mod_about.R            About view, static, so there is no server half
   utils.R                Small helpers
 tests/testthat/          Logic and module tests. They use a fixture, never the network
-www/app.css              Navbar, card and footer theming, the tour, and the
-                         stat tiles and spacing bslib has no opinion on
+www/                     app.css for theming, plus driver.css, driver.js and
+                         tour.js for the guided tour
 docs/design.md           Architecture and design notes
 ```
 
@@ -123,20 +129,9 @@ The computation sits in a Shiny-free logic layer. You can test that layer
 without a running app. Each view is a Shiny module. [docs/design.md](docs/design.md)
 explains why.
 
-## Development
+## Contributing
 
-```sh
-prek install        # install the git hooks: air, lintr, secret scanning
-air format .        # format the R code
-```
-
-```r
-install.packages(c("testthat", "lintr"))   # dev tools, not in renv.lock
-lintr::lint_dir(".")
-testthat::test_dir("tests/testthat")
-```
-
-[CONTRIBUTING.md](CONTRIBUTING.md) has the details. It covers the branch
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the hooks, the linters, the branch
 convention and the rebuild of the catalog snapshot.
 
 ## Citation
